@@ -19,16 +19,10 @@ let settings = JSON.parse(localStorage.getItem('pipewise-settings') || '{}');
 settings.name ||= 'APS Architectural Plumbing Services';
 settings.preparedBy ||= 'Cheyenne';
 settings.phone ||= '076 705 8718';
-settings.email ||= 'cheyenne@agasouthafrica.co.za';
+settings.email ||= 'architecturalplumbingservices@gmail.com';
 settings.taxNumber ||= '105 976 616';
 let quotes = JSON.parse(localStorage.getItem('pipewise-quotes') || '[]');
 const plumbingCatalogue = {
-    'Glass products': {
-        'Toughened safety glass': { sizes: { '6mm per m2': 950, '8mm per m2': 1250, '10mm per m2': 1650, '12mm per m2': 2100 }, markup: MATERIAL_MARKUP, unit: 'm2' },
-        'Laminated safety glass': { sizes: { '6.38mm per m2': 1450, '8.38mm per m2': 1800 }, markup: MATERIAL_MARKUP, unit: 'm2' },
-        'Float glass': { sizes: { '4mm per m2': 520, '6mm per m2': 780 }, markup: MATERIAL_MARKUP, unit: 'm2' },
-        Mirror: { sizes: { '4mm per m2': 850, '6mm per m2': 1100 }, markup: MATERIAL_MARKUP, unit: 'm2' }
-    },
     Pipes: {
         'PVC pressure pipe': { sizes: { '15mm x 6m': 120, '22mm x 6m': 180, '28mm x 6m': 260, '50mm x 6m': 205, '110mm x 6m': 349 }, markup: MATERIAL_MARKUP },
         'Copper pipe': { sizes: { '15mm x 5.5m': 450, '22mm x 5.5m': 680 }, markup: MATERIAL_MARKUP },
@@ -691,7 +685,7 @@ function importQuotes(file) {
 
 function viewSavedQuotePdf(index) { loadQuote(index); requestAnimationFrame(() => window.print()); }
 function switchView(view) { document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view)); document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view')); $(`${view}-view`).classList.add('active-view'); $('page-title').textContent = view === 'new-quote' ? 'Quote' : view === 'quotes' ? 'Saved quotes' : view === 'price-list' ? 'Price list' : view === 'scenarios' ? 'Scenarios' : 'Company settings'; if (view === 'price-list') renderPriceList(); if (view === 'scenarios') renderScenarioEditor(); }
-function loadSettings() { $('company-name').value = settings.name || ''; $('company-phone').value = settings.phone || ''; $('company-email').value = settings.email || ''; $('prepared-by').value = settings.preparedBy || ''; $('tax-number').value = settings.taxNumber || ''; $('print-prepared-by').textContent = settings.preparedBy || 'Cheyenne'; $('print-contact').textContent = settings.phone || '076 705 8718'; $('print-email').textContent = settings.email || 'cheyenne@agasouthafrica.co.za'; $('print-tax-number').textContent = settings.taxNumber || '105 976 616'; $('vat-rate').value = settings.vatRate ?? VAT_DEFAULT; $('quote-date').textContent = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function loadSettings() { $('company-name').value = settings.name || ''; $('company-phone').value = settings.phone || ''; $('company-email').value = settings.email || ''; $('prepared-by').value = settings.preparedBy || ''; $('tax-number').value = settings.taxNumber || ''; $('print-prepared-by').textContent = settings.preparedBy || 'Cheyenne'; $('print-contact').textContent = settings.phone || '076 705 8718'; $('print-email').textContent = settings.email || 'architecturalplumbingservices@gmail.com'; $('print-tax-number').textContent = settings.taxNumber || '105 976 616'; $('vat-rate').value = settings.vatRate ?? VAT_DEFAULT; $('quote-date').textContent = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => switchView(item.dataset.view)));
 document.querySelectorAll('.supplier-tab').forEach(tab => tab.addEventListener('click', () => { selectedSupplier = tab.dataset.supplier; document.querySelectorAll('.supplier-tab').forEach(item => item.classList.toggle('active', item === tab)); $('supplier-source').innerHTML = `Prices shown from ${supplierInfo[selectedSupplier].name} reference catalogue · <a href="${supplierInfo[selectedSupplier].url}" target="_blank" rel="noopener">Open supplier ↗</a>`; renderMaterials(); }));
