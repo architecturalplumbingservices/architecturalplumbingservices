@@ -57,11 +57,6 @@
                     Price list
                 </button>
 
-                <button class="nav-item" data-view="scenarios" type="button">
-                    <span class="nav-icon">☷</span>
-                    Scenarios
-                </button>
-
             </nav>
 
             <div class="sidebar-footer">
@@ -1345,136 +1340,9 @@
             </section>
 
 
-            <!-- =================================================
-                 SCENARIOS VIEW
-                 ================================================= -->
-
-            <section id="scenarios-view" class="view">
-
-                <div class="view-intro">
-
-                    <div>
-
-                        <span class="eyebrow">
-                            SCENARIO TEMPLATES
-                        </span>
-
-                        <h2>
-                            Scenarios
-                        </h2>
-
-                        <p class="view-note">
-                            Choose a job scenario to edit the services
-                            added to a quote.
-                        </p>
-
-                    </div>
-
-
-                    <div class="price-list-actions">
-
-                        <button class="secondary-button compact" id="new-scenario" type="button">
-                            + New scenario
-                        </button>
-
-
-                        <button class="secondary-button compact" id="add-scenario-service" type="button">
-                            + Add service
-                        </button>
-
-
-                        <button class="primary-button compact" id="save-scenario" type="button">
-                            Save scenario
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <div class="scenario-editor">
-
-                    <label class="field scenario-editor-select">
-
-                        <span>
-                            Job scenario
-                        </span>
-
-                        <select id="scenario-editor-select" aria-label="Scenario to edit"></select>
-
-                    </label>
-
-
-                    <div class="scenario-service-headings" aria-hidden="true">
-
-                        <span>Category</span>
-                        <span>Task</span>
-                        <span>Unit</span>
-                        <span>Qty</span>
-                        <span>Rate</span>
-                        <span>Total</span>
-                        <span></span>
-
-                    </div>
-
-
-                    <div class="scenario-editor-list" id="scenario-editor-list"></div>
-
-
-                    <div class="material-empty" id="scenario-editor-empty">
-                        Select a scenario to edit its linked services.
-                    </div>
-
-                </div>
-
-            </section>
-
-        </main>
+            </main>
 
     </div>
-
-
-    <!-- =========================================================
-         NEW SCENARIO DIALOG
-         ========================================================= -->
-
-    <dialog class="scenario-dialog" id="scenario-dialog" aria-labelledby="scenario-dialog-title">
-
-        <form id="scenario-form">
-
-            <h2 id="scenario-dialog-title">
-                New scenario
-            </h2>
-
-
-            <label class="field">
-
-                <span>
-                    Scenario name
-                </span>
-
-                <input id="new-scenario-name" type="text" maxlength="80" placeholder="e.g. Replace kitchen mixer"
-                    required>
-
-            </label>
-
-
-            <div class="scenario-dialog-actions">
-
-                <button class="secondary-button compact" type="button" id="cancel-scenario">
-                    Cancel
-                </button>
-
-
-                <button class="primary-button compact" type="submit">
-                    Create scenario
-                </button>
-
-            </div>
-
-        </form>
-
-    </dialog>
 
 
     <!-- =========================================================
