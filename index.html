@@ -1117,16 +1117,12 @@
                             Load from file
                         </button>
 
-                        <button class="primary-button compact" id="google-signin-button" type="button">
-                            Sign in to Google
-                        </button>
-
                         <button class="primary-button compact" id="drive-save-button" type="button" hidden>
-                            Save to Drive
+                            Share to Drive
                         </button>
 
                         <button class="primary-button compact" id="drive-load-button" type="button" hidden>
-                            Load from Drive
+                            Sync from Drive
                         </button>
 
                         <button class="primary-button compact" id="new-quote-button" type="button">
@@ -1497,10 +1493,14 @@
 
     <!-- =========================================================
          APS APPLICATION
+         config.js loads first: it carries the backend URL the app
+         needs to reach the shared Drive. It contains no secrets.
+         The Google sign-in library is no longer needed - quotes are
+         shared through the backend, not through an individual's
+         Google account.
          ========================================================= -->
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
+    <script src="config.js"></script>
     <script src="app.js"></script>
 
 

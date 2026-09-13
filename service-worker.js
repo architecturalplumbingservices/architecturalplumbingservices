@@ -1,9 +1,10 @@
-const CACHE_NAME = 'pipewise-v3';
-
+/* Bump this whenever a cached file changes, or phones keep the old copy. */
+const CACHE_NAME = 'pipewise-v4';
 const APP_FILES = [
     './',
     './index.html',
     './styles.css',
+    './config.js',
     './app.js',
     './manifest.json',
     './APSLOGO.jpeg'

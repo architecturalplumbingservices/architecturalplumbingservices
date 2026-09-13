@@ -553,103 +553,179 @@ function renderSavedQuotes() {
     document.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => { quotes.splice(Number(button.dataset.delete), 1); localStorage.setItem('pipewise-quotes', JSON.stringify(quotes)); saveQuotesToDrive(true); renderSavedQuotes(); showToast('Quote deleted'); }));
 }
 function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = index; isAmended = Boolean(quote.amended); $('quote-status').textContent = isAmended ? 'AMENDED' : 'SAVED'; $('amendment-panel').hidden = !isAmended; $('customer-name').value = quote.customer.name; $('customer-phone').value = quote.customer.phone; $('customer-address').value = quote.customer.address; $('service-description').value = quote.customer.serviceDescription || ''; $('amendment-reason').value = quote.amendmentReason || ''; sitePhotos = (quote.customer.sitePhotos || (quote.customer.sitePhoto ? [quote.customer.sitePhoto] : [])).map(photo => typeof photo === 'string' ? { data: photo, description: '' } : photo); updateSitePhotoPreview(); labourItems = quote.labour.items ? quote.labour.items.map(item => ({ ...item })) : [{ description: 'Call-out fee', unit: 'Each', quantity: 1, rate: quote.labour.callout ?? 650, type: 'callout' }, { description: 'Inspection & evaluation', unit: 'Day', quantity: quote.labour.hours ?? 0, rate: quote.labour.plumberHourlyRate ?? quote.labour.hourlyRate ?? 500, type: 'labour' }, { description: 'Additional labour', unit: 'Day', quantity: quote.labour.extraWorkers ?? 0, rate: quote.labour.extraWorkerHourlyRate ?? 500, type: 'labour' }]; materials = quote.materials; services = quote.services || []; $('quote-number').textContent = quote.id; updateSummary(); renderLabourItems(); renderMaterials(); renderServices(); switchView('new-quote'); }
-// ===================== GOOGLE DRIVE SYNC =====================
-// Replace with your OAuth Client ID from Google Cloud Console (see README steps).
-const GOOGLE_CLIENT_ID = '550031555566-mtvat3oqerd8iva15qj73gr8kf6kgump.apps.googleusercontent.com';
-const DRIVE_FILE_NAME = 'pipewise-quotes.json';
-let googleToken = null;
-let googleEmail = null;
-let driveFileId = null;
-let tokenClient = null;
+// ===================== SHARED DRIVE SYNC (MULTI-USER) =====================
+/*
+   Quotes live in ONE Google Drive folder that the company owns,
+   reached through a small backend function instead of from the
+   browser directly.
+
+   WHY NOT TALK TO DRIVE FROM THE BROWSER:
+   A static site cannot keep an OAuth client secret, and Google only
+   lets a browser see files that browser itself created. A browser-only
+   version could therefore never show one person another person's
+   quotes. The backend holds the credentials, so every user of this app
+   sees the same shared set of quotes.
+
+   The old "Sign in to Google" button is deliberately gone: there is
+   nothing for an individual to sign in to. Its button is left in the
+   markup but hidden, so an older cached page cannot show a dead control.
+
+   WHERE THE SERVER IS
+   APS_DRIVE_FUNCTION_URL is set in config.js (never a secret - just a
+   URL). If it is blank the app stays fully usable offline and simply
+   does not offer Drive, so the workshop is never left with a broken
+   tool mid-setup.
+*/
+const DRIVE_FUNCTION_URL = (typeof window !== 'undefined' && window.APS_DRIVE_FUNCTION_URL) || '';
+let driveAvailable = false;
+let driveBusy = false;
 
 function updateDriveStatus(message) { const el = $('drive-status'); if (el) el.textContent = message; }
 
 function updateDriveButtons() {
-    const signedIn = Boolean(googleToken);
-    $('google-signin-button').hidden = signedIn;
-    $('drive-save-button').hidden = !signedIn;
-    $('drive-load-button').hidden = !signedIn;
+    const save = $('drive-save-button');
+    const load = $('drive-load-button');
+    if (save) save.hidden = !driveAvailable;
+    if (load) load.hidden = !driveAvailable;
 }
 
-function initGoogleSignIn(retries = 0) {
-    if (!window.google || !google.accounts || !google.accounts.oauth2) {
-        if (retries < 40) { setTimeout(() => initGoogleSignIn(retries + 1), 300); return; }
-        updateDriveStatus('Google sign-in library could not load — check your internet connection or ad blocker');
+/*
+   Every call goes through here, so a single place handles the
+   server being missing, unreachable, or not yet configured.
+*/
+async function driveRequest(action, options = {}) {
+    if (!DRIVE_FUNCTION_URL) throw new Error('not-configured');
+    const url = DRIVE_FUNCTION_URL + (DRIVE_FUNCTION_URL.includes('?') ? '&' : '?') + 'action=' + action;
+    let response;
+    try {
+        response = await fetch(url, {
+            method: options.method || 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: options.body ? JSON.stringify(options.body) : undefined
+        });
+    } catch (error) {
+        /*
+           A network failure here is normal in a workshop with poor
+           signal, so it is reported plainly rather than thrown.
+        */
+        updateDriveStatus('Shared Drive unreachable — quotes are safe on this device');
+        throw new Error('offline');
+    }
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    if (!response.ok) {
+        const message = (data && data.error) || ('Shared Drive request failed (' + response.status + ')');
+        updateDriveStatus(message);
+        throw new Error(message);
+    }
+    return data;
+}
+
+/*
+   Ask the server whether Drive is actually configured. Until the
+   administrator finishes the Google setup this returns false, and the
+   app quietly stays local-only.
+*/
+async function initDrive() {
+    if (!DRIVE_FUNCTION_URL) {
+        driveAvailable = false;
+        updateDriveButtons();
+        updateDriveStatus('');
         return;
     }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive.file email',
-        callback: response => {
-            if (response.access_token) { googleToken = response.access_token; updateDriveButtons(); updateDriveStatus('Connected to Google Drive'); findDriveFile().then(() => loadQuotesFromDrive()); }
-            else if (response.error) { updateDriveStatus('Google sign-in failed: ' + response.error); }
-        }
-    });
-}
-
-function signInGoogle() {
-    if (GOOGLE_CLIENT_ID.startsWith('YOUR_CLIENT_ID')) { showToast('Add your Google Client ID in app.js first'); return; }
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-}
-
-async function driveFetch(url, options = {}) {
-    options.headers = { ...(options.headers || {}), Authorization: `Bearer ${googleToken}` };
-    const response = await fetch(url, options);
-    if (response.status === 401) { googleToken = null; updateDriveButtons(); updateDriveStatus('Google session expired — sign in again'); throw new Error('unauthorised'); }
-    if (!response.ok) throw new Error(`Drive request failed (${response.status})`);
-    return response;
-}
-
-async function findDriveFile() {
     try {
-        const query = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
-        const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`);
-        const data = await response.json();
-        driveFileId = data.files && data.files.length ? data.files[0].id : null;
-        updateDriveStatus(driveFileId ? 'Backing up to Drive: pipewise-quotes.json' : 'No Drive backup yet — it will be created on next save');
-    } catch { /* silent — status already handled in driveFetch for 401s */ }
+        const data = await driveRequest('status');
+        driveAvailable = Boolean(data && data.configured);
+        updateDriveButtons();
+        updateDriveStatus(
+            driveAvailable
+                ? 'Shared Drive connected — quotes are shared with everyone using this app'
+                : 'Shared Drive is not set up yet — quotes are saved on this device only'
+        );
+    } catch {
+        driveAvailable = false;
+        updateDriveButtons();
+    }
 }
 
+/*
+   The single place that pushes one quote. Called automatically after a
+   save or delete, so the shared copy always tracks the local one.
+*/
+async function saveQuoteToDrive(quote, silent = true) {
+    if (!driveAvailable || !quote || !quote.id) return;
+    try {
+        await driveRequest('save', { method: 'POST', body: quote });
+        if (!silent) showToast('Quote shared to Drive');
+        updateDriveStatus('Shared to Drive · ' + new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) {
+        /* Offline is expected in the field; the local copy is authoritative. */
+        if (error.message !== 'offline' && !silent) showToast('Could not share to Drive');
+    }
+}
+
+/* Kept for the existing call sites that saved the whole list at once. */
 async function saveQuotesToDrive(silent = false) {
-    if (!googleToken) return;
+    if (!driveAvailable) return;
     try {
-        if (!driveFileId) await findDriveFile();
-        const boundary = 'pipewise' + Date.now();
-        const metadata = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
-        const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ exported: new Date().toISOString(), quotes }, null, 2)}\r\n--${boundary}--`;
-        const url = driveFileId
-            ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
-            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
-        const response = await driveFetch(url, { method: driveFileId ? 'PATCH' : 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body });
-        if (!driveFileId) driveFileId = (await response.json()).id;
-        if (!silent) showToast('Quotes saved to Google Drive');
-        updateDriveStatus(`Backed up to Drive · ${new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}`);
+        await driveRequest('save-all', { method: 'POST', body: { quotes } });
+        if (!silent) showToast('Quotes shared to Drive');
+        updateDriveStatus('Shared to Drive · ' + quotes.length + ' quote' + (quotes.length === 1 ? '' : 's'));
     } catch (error) {
-        if (error.message !== 'unauthorised') { updateDriveStatus('Drive backup failed — will retry on next save'); if (!silent) showToast('Could not save to Google Drive'); }
+        if (error.message !== 'offline' && !silent) showToast('Could not share to Drive');
     }
 }
 
+/*
+   Pull the shared quotes down and merge them with what is on this
+   device. Merging by id means a quote created on another phone appears
+   here without wiping anything already saved locally.
+*/
 async function loadQuotesFromDrive() {
-    if (!googleToken) { updateDriveStatus('Sign in to Google first'); return; }
+    if (!driveAvailable) { updateDriveStatus('Shared Drive is not set up yet'); return; }
+    if (driveBusy) return;
+    driveBusy = true;
     try {
-        if (!driveFileId) await findDriveFile();
-        if (!driveFileId) { showToast('No backup found in Drive yet'); return; }
-        const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
-        const data = JSON.parse(await response.text());
-        const incoming = Array.isArray(data) ? data : data.quotes;
-        if (!Array.isArray(incoming)) throw new Error('bad format');
-        const existingIds = new Set(quotes.map(quote => quote.id));
-        const added = incoming.filter(quote => quote && quote.id && !existingIds.has(quote.id));
-        if (!added.length) { showToast('Quotes already up to date with Drive'); return; }
-        quotes = incoming.filter(quote => quote && quote.id);
+        const data = await driveRequest('list');
+        const incoming = (data && data.quotes) || [];
+        if (!Array.isArray(incoming) || !incoming.length) {
+            showToast('Nothing on the shared Drive yet');
+            return;
+        }
+        const byId = new Map(quotes.filter(q => q && q.id).map(q => [q.id, q]));
+        let added = 0;
+        let updated = 0;
+        for (const quote of incoming) {
+            if (!quote || !quote.id) continue;
+            const existing = byId.get(quote.id);
+            if (!existing) { added++; byId.set(quote.id, quote); }
+            else {
+                /*
+                   Newest wins. Without this, a re-loaded older copy
+                   could silently roll back an edit made elsewhere.
+                */
+                const mine = Date.parse(existing.updatedAt || existing.createdAt || 0) || 0;
+                const theirs = Date.parse(quote.updatedAt || quote.createdAt || 0) || 0;
+                if (theirs > mine) { updated++; byId.set(quote.id, quote); }
+            }
+        }
+        quotes = [...byId.values()];
         localStorage.setItem('pipewise-quotes', JSON.stringify(quotes));
+        $('quote-count').textContent = quotes.length;
         renderSavedQuotes();
-        showToast(`${added.length} quote${added.length === 1 ? '' : 's'} loaded from Drive`);
+        const parts = [];
+        if (added) parts.push(added + ' new');
+        if (updated) parts.push(updated + ' updated');
+        showToast(parts.length ? 'Shared Drive: ' + parts.join(', ') : 'Already up to date with the shared Drive');
+        updateDriveStatus('Synced · ' + quotes.length + ' quote' + (quotes.length === 1 ? '' : 's'));
     } catch (error) {
-        if (error.message !== 'unauthorised') showToast('Could not read backup from Drive');
+        if (error.message !== 'offline') showToast('Could not read the shared Drive');
+    } finally {
+        driveBusy = false;
     }
 }
-// =================== END GOOGLE DRIVE SYNC ===================
+// =================== END SHARED DRIVE SYNC ===================
 
 function exportQuotes() {
     if (!quotes.length) { showToast('No saved quotes to export'); return; }
@@ -709,10 +785,10 @@ function clearQuote() { resetForm(); showToast('Quote cleared'); }
 $('save-quote').addEventListener('click', saveQuote); $('clear-quote').addEventListener('click', clearQuote); $('clear-quote-top').addEventListener('click', clearQuote); $('print-button').addEventListener('click', () => window.print()); $('pdf-button').addEventListener('click', () => window.print()); $('export-quotes-button').addEventListener('click', exportQuotes);
 $('import-quotes-button').addEventListener('click', () => $('import-quotes-file').click());
 $('import-quotes-file').addEventListener('change', event => { const file = event.target.files[0]; if (file) importQuotes(file); event.target.value = ''; });
-$('google-signin-button').addEventListener('click', signInGoogle);
 $('drive-save-button').addEventListener('click', () => saveQuotesToDrive(false));
 $('drive-load-button').addEventListener('click', loadQuotesFromDrive);
-initGoogleSignIn();
+updateDriveButtons();
+initDrive();
 $('new-quote-button').addEventListener('click', () => { resetForm(); switchView('new-quote'); });
 $('check-prices-button').addEventListener('click', runPriceCheck);
 $('price-list-file-page').addEventListener('change', importPriceList);
