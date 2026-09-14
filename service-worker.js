@@ -1,5 +1,5 @@
 /* Bump this whenever a cached file changes, or phones keep the old copy. */
-const CACHE_NAME = 'pipewise-v5';
+const CACHE_NAME = 'apc-v14';
 const APP_FILES = [
     './',
     './index.html',
@@ -7,7 +7,7 @@ const APP_FILES = [
     './config.js',
     './app.js',
     './manifest.json',
-    './APSLOGO.jpeg'
+    './APClogo.jpg'
 ];
 
 self.addEventListener('install', event => {

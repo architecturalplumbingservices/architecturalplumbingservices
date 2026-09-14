@@ -1,4 +1,4 @@
-# Shared Google Drive Setup — APS / Pipewise
+# Shared Google Drive Setup — APS Architectural Performance Coatings
 
 This makes **all quotes shared between everyone who uses the app**, and it
 keeps the Google credentials **off the website** so they can never be stolen

@@ -1,5 +1,5 @@
 /* =========================================================
-   APS / PIPEWISE — DEPLOYMENT CONFIGURATION
+   APS ARCHITECTURAL PERFORMANCE COATINGS — DEPLOYMENT CONFIGURATION
    ---------------------------------------------------------
    This file holds NOTHING secret. It is served to every
    visitor, so a password, API key or client secret must never

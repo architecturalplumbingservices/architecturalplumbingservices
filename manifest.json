@@ -1,10 +1,10 @@
 {
-    "name": "AGA Architectural Glass & Aluminium",
-    "short_name": "AGA Quotes",
+    "name": "APS Architectural Performance Coatings Quote Calculator",
+    "short_name": "APS Quotes",
     "start_url": "/APS/",
     "scope": "/APS/",
     "display": "standalone",
-    "background_color": "#f7f9f6",
-    "theme_color": "#0e6ba8",
-    "description": "Offline glass and aluminium quote and pricing calculator"
+    "background_color": "#eef0f3",
+    "theme_color": "#0d1b2e",
+    "description": "Offline quote and pricing calculator for coatings, handyman, building, electrical and plastering work"
 }

@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="theme-color" content="#123b70">
-    <meta name="description" content="Offline plumbing quote and pricing calculator">
+    <meta name="theme-color" content="#0d1b2e">
+    <meta name="description" content="Offline quote and pricing calculator for APS Architectural Performance Coatings: coatings, handyman, building, electrical and plastering work">
 
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/jpeg" href="APSLOGO.jpeg">
-    <link rel="apple-touch-icon" href="APSLOGO.jpeg">
+    <link rel="icon" type="image/jpeg" href="APClogo.jpg">
+    <link rel="apple-touch-icon" href="APClogo.jpg">
     <link rel="stylesheet" href="styles.css">
 
-    <title>Pipewise Quote Calculator</title>
+    <title>APS Architectural Performance Coatings — Quote Calculator</title>
 </head>
 
 <body>
@@ -27,7 +27,7 @@
         <aside class="sidebar">
 
             <div class="brand">
-                <img class="brand-logo" src="APSLOGO.jpeg" alt="APS Architectural Plumbing Services">
+                <img class="brand-logo" src="APClogo.jpg" alt="APS Architectural Performance Coatings">
             </div>
 
             <div class="sidebar-kicker">
@@ -81,7 +81,7 @@
 
                 <div>
                     <div class="eyebrow">
-                        PLUMBING OPERATIONS
+                        COATINGS &amp; TRADE OPERATIONS
                     </div>
 
                     <h1 id="page-title">
@@ -96,7 +96,7 @@
                     </span>
 
                     <span class="quote-id" id="quote-number">
-                        PW-2026-001
+                        APC-2026-001
                     </span>
 
                     <button class="clear-quote-top" id="clear-quote-top" title="Clear quote" aria-label="Clear quote"
@@ -325,27 +325,25 @@
 
                             <div class="supplier-tabs" role="tablist" aria-label="Supplier price source">
 
-                                <button class="supplier-tab active" data-supplier="plumblink" role="tab" type="button">
-                                    Plumblink
-                                </button>
-
-                                <button class="supplier-tab" data-supplier="builders" role="tab" type="button">
+                                <button class="supplier-tab active" data-supplier="builders" role="tab" type="button">
                                     Builders
                                 </button>
 
-                                <button class="supplier-tab" data-supplier="bathroom" role="tab" type="button">
-                                    Bathroom Bizarre
+                                <button class="supplier-tab" data-supplier="chamberlains" role="tab" type="button">
+                                    Chamberlains
+                                </button>
+
+                                <button class="supplier-tab" data-supplier="buildit" role="tab" type="button">
+                                    Build it
                                 </button>
 
                             </div>
 
 
                             <div class="supplier-source" id="supplier-source">
-                                Prices shown from Plumblink reference
-                                catalogue ·
+                                Reference prices from Builders catalogue ·
 
-                                <a href="https://www.plumblink.co.za/all-products" target="_blank"
-                                    rel="noopener noreferrer">
+                                <a href="https://www.builders.co.za/" target="_blank" rel="noopener noreferrer">
                                     Open supplier ↗
                                 </a>
                             </div>
@@ -370,14 +368,12 @@
 
                             <div class="material-headings" aria-hidden="true">
                                 <span>Category</span>
-                                <span>Material type</span>
+                                <span>Material</span>
                                 <span>Size</span>
-                                <span>Width (mm)</span>
-                                <span>Height (mm)</span>
                                 <span>Qty</span>
                                 <span>Best price</span>
                                 <span>Markup</span>
-                                <span>Selling price</span>
+                                <span>Total</span>
                                 <span></span>
                             </div>
 
@@ -426,126 +422,53 @@
                                     </option>
 
 
-                                    <optgroup label="Drainage &amp; water supply">
+                                    <optgroup label="Quick start">
 
-                                        <option value="underground-pipe">
-                                            Replace underground pipe
+                                        <option value="handyman-odd-jobs">
+                                            General odd jobs &amp; repairs
                                         </option>
 
-                                        <option value="blocked-drain">
-                                            Unblock drain or sewer
+                                        <option value="handyman-shelves">
+                                            Fit shelves &amp; furniture
                                         </option>
 
-                                        <option value="unblock-toilet">
-                                            Unblock toilet
+                                        <option value="handyman-door">
+                                            Hang or repair doors
                                         </option>
 
-                                        <option value="unblock-sewer">
-                                            Unblock sewer line
+                                        <option value="handyman-tv-mount">
+                                            Mount TV or wall bracket
                                         </option>
 
-                                        <option value="collapsed-sewer">
-                                            Collapsed sewer pipe
+                                        <option value="electric-plug">
+                                            Install plug point
                                         </option>
 
-                                        <option value="main-water-pipe">
-                                            Replace main water pipe
+                                        <option value="electric-fault">
+                                            Trace &amp; repair electrical fault
                                         </option>
 
-                                        <option value="outside-tap">
-                                            Install outside tap
+                                        <option value="building-wall">
+                                            Build new wall
                                         </option>
 
-                                        <option value="water-meter">
-                                            Replace water meter
+                                        <option value="building-slab">
+                                            Cast concrete slab
                                         </option>
 
-                                    </optgroup>
-
-
-                                    <optgroup label="Geysers &amp; pumps">
-
-                                        <option value="geyser-install">
-                                            Install geyser
+                                        <option value="plaster-wall">
+                                            Plaster interior wall
                                         </option>
 
-                                        <option value="geyser-leak">
-                                            Repair geyser leak
+                                        <option value="coatings-waterproofing">
+                                            Waterproofing coating
                                         </option>
-
-                                        <option value="geyser-element">
-                                            Replace geyser element
-                                        </option>
-
-                                        <option value="pressure-pump">
-                                            Install pressure pump
-                                        </option>
-
-                                    </optgroup>
-
-
-                                    <optgroup label="Bathrooms &amp; fixtures">
-
-                                        <option value="bathroom-install">
-                                            Bathroom installation
-                                        </option>
-
-                                        <option value="replace-toilet">
-                                            Replace toilet
-                                        </option>
-
-                                        <option value="install-toilet">
-                                            Install new toilet
-                                        </option>
-
-                                        <option value="replace-basin">
-                                            Replace basin
-                                        </option>
-
-                                        <option value="replace-bath">
-                                            Replace bath
-                                        </option>
-
-                                        <option value="replace-shower">
-                                            Replace shower
-                                        </option>
-
-                                    </optgroup>
-
-
-                                    <optgroup label="Leaks &amp; access">
-
-                                        <option value="leak-repair">
-                                            Repair water leak
-                                        </option>
-
-                                        <option value="wall-leak">
-                                            Repair leak inside wall
-                                        </option>
-
-                                        <option value="floor-leak">
-                                            Repair leak under floor
-                                        </option>
-
-                                        <option value="paving-access">
-                                            Access pipe under paving
-                                        </option>
-
-                                        <option value="concrete-access">
-                                            Access pipe under concrete
-                                        </option>
-
-                                    </optgroup>
-
-
-                                    <optgroup label="Site work">
 
                                         <option value="excavation-only">
-                                            Plumbing excavation only
+                                            Excavation &amp; earthworks
                                         </option>
 
                                     </optgroup>
-
                                 </select>
 
 
@@ -586,8 +509,8 @@
 
                             <p class="material-note">
                                 Add physical work separately from materials,
-                                such as excavation, restoration, cleaning,
-                                or equipment.
+                                such as electrical, building, plastering, painting,
+                                coatings, excavation, cleaning, or equipment.
                             </p>
 
 
@@ -663,16 +586,16 @@
 
                         <div class="company-print-header">
 
-                            <img src="APSLOGO.jpeg" alt="APS Architectural Plumbing Services">
+                            <img src="APClogo.jpg" alt="APS Architectural Performance Coatings">
 
                             <span>
-                                ARCHITECTURAL PLUMBING SERVICES
+                                ARCHITECTURAL PERFORMANCE COATINGS
                             </span>
 
                             <small>
                                 Reg No: 2025/816148/07<br>
-                                Unit 7, Central Lake Factory Park<br>
-                                5 Louis Friedman Street, Factoria, Krugersdorp
+                                5 Louis Friedman Street, Central Lake Factory Park<br>
+                                Unit 7, Factoria, Krugersdorp
                             </small>
 
 
@@ -688,13 +611,13 @@
 
                                 Contact:
                                 <span id="print-contact">
-                                    076 705 8718
+                                    010 597 6616
                                 </span>
                                 <br>
 
                                 Email:
                                 <span id="print-email">
-                                    architecturalplumbingservices@gmail.com
+                                    info@agasouthafrica.co.za
                                 </span>
                                 <br>
 
@@ -865,12 +788,12 @@
 
                         <header class="terms-header">
 
-                            <img src="APSLOGO.jpeg" alt="APS Architectural Plumbing Services">
+                            <img src="APClogo.jpg" alt="APS Architectural Performance Coatings">
 
                             <div>
 
                                 <span>
-                                    APS ARCHITECTURAL PLUMBING SERVICES
+                                    APS ARCHITECTURAL PERFORMANCE COATINGS
                                 </span>
 
                                 <h2 id="terms-title">
@@ -1174,7 +1097,7 @@
                             Company name
                         </span>
 
-                        <input id="company-name" type="text" placeholder="Your plumbing business">
+                        <input id="company-name" type="text" placeholder="Your business">
 
                     </label>
 
@@ -1388,13 +1311,13 @@
             window.addEventListener('load', async () => {
                 try {
                     const registration = await navigator.serviceWorker.register('./service-worker.js');
-                    console.log('Pipewise service worker registered:', registration.scope);
+                    console.log('APS service worker registered:', registration.scope);
                 } catch (error) {
-                    console.error('Pipewise service worker registration failed:', error);
+                    console.error('APS service worker registration failed:', error);
                 }
             });
         } else {
-            console.log('Pipewise service worker skipped: page is not running in a secure context.');
+            console.log('APS service worker skipped: page is not running in a secure context.');
         }
 
 

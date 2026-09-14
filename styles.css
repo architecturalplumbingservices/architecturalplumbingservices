@@ -1,14 +1,20 @@
 :root {
-    --ink: #123b70;
-    --muted: #667891;
-    --line: #d7e1ee;
-    --paper: #f4f8fc;
+    /* Silver / dark blue / black palette */
+    --ink: #0d1b2e;
+    --muted: #5f6b7c;
+    --line: #c9ced6;
+    --paper: #eef0f3;
     --white: #fff;
-    --mint: #dcecff;
-    --mint-strong: #82b5ed;
-    --coral: #0757b8;
+    --mint: #dde1e7;
+    --mint-strong: #9aa4b2;
+    --coral: #10376b;
     --yellow: #f3c76a;
-    --shadow: 0 18px 45px rgba(7, 87, 184, .12)
+    --silver: #b8bfc9;
+    --silver-dark: #8a939f;
+    --navy: #10376b;
+    --navy-deep: #0a2547;
+    --black: #0d1b2e;
+    --shadow: 0 18px 45px rgba(13, 27, 46, .18)
 }
 
 * {
@@ -27,23 +33,24 @@ body {
     display: block;
     width: 155px;
     height: auto;
-    background: #fff
+    background: transparent;
+    border-radius: 3px
 }
 
 @media print {
     .company-print-header {
         display: grid;
         gap: 5px;
-        border-bottom: 2px solid #183333;
+        border-bottom: 2px solid var(--black);
         padding-bottom: 18px;
         margin-bottom: 18px;
-        color: #183333
+        color: var(--black)
     }
 
     .company-print-header strong {
         font-size: 34px;
         letter-spacing: .08em;
-        color: #0757b8
+        color: var(--navy)
     }
 
     .company-print-header span {
@@ -66,7 +73,7 @@ body {
     }
 
     .company-contact-print b {
-        color: #183333;
+        color: var(--black);
         letter-spacing: .08em
     }
 }
@@ -86,8 +93,8 @@ button {
 }
 
 .sidebar {
-    background: var(--ink);
-    color: #eaf4ef;
+    background: var(--black);
+    color: #e8eaee;
     width: 220px;
     padding: 24px 20px 20px;
     display: flex;
@@ -118,7 +125,7 @@ button {
 
 .sidebar-kicker {
     font: 11px 'DM Mono', monospace;
-    color: #799593;
+    color: var(--silver);
     letter-spacing: .12em;
     margin: 48px 0 14px
 }
@@ -131,7 +138,7 @@ button {
 .nav-item {
     border: 0;
     background: transparent;
-    color: #a8b9b4;
+    color: #cdd3db;
     text-align: left;
     padding: 10px 11px;
     border-radius: 5px;
@@ -143,7 +150,7 @@ button {
 
 .nav-item:hover,
 .nav-item.active {
-    background: #274745;
+    background: var(--navy);
     color: var(--white)
 }
 
@@ -157,15 +164,15 @@ button {
 .nav-count {
     font: 11px 'DM Mono', monospace;
     margin-left: auto;
-    background: #395958;
-    color: #cce4dc;
+    background: var(--navy);
+    color: var(--silver);
     padding: 3px 7px;
     border-radius: 10px
 }
 
 .sidebar-footer {
     margin-top: auto;
-    color: #91aaa4;
+    color: var(--silver);
     display: flex;
     align-items: center;
     gap: 9px;
@@ -176,7 +183,7 @@ button {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #72d7a5
+    background: var(--silver)
 }
 
 .main-content {
@@ -220,7 +227,7 @@ h2 {
 }
 
 .clear-quote-top {
-    border: 1px solid #c8d5e4;
+    border: 1px solid var(--line);
     background: transparent;
     color: var(--muted);
     padding: 9px 12px;
@@ -329,13 +336,13 @@ h2 {
 
 .field input:focus,
 .field textarea:focus {
-    border-color: var(--coral);
-    box-shadow: 0 0 0 3px rgba(233, 120, 93, .11)
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(16, 55, 107, .15)
 }
 
 .field input::placeholder,
 .field textarea::placeholder {
-    color: #b3bfbd
+    color: var(--silver-dark)
 }
 
 .photo-upload {
@@ -516,13 +523,14 @@ h2 {
 
 .material-headings {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 48px 90px 65px 110px 28px;
-    gap: 8px;
-    padding: 0 8px 7px;
+    grid-template-columns: minmax(88px, 1.35fr) minmax(84px, 1.3fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
+    gap: 6px;
+    padding: 0 6px 7px;
     color: var(--muted);
     font: 10px 'DM Mono', monospace;
     letter-spacing: .05em;
-    text-transform: uppercase
+    text-transform: uppercase;
+    white-space: nowrap
 }
 
 .material-headings span:not(:first-child) {
@@ -531,7 +539,7 @@ h2 {
 
 .service-headings,
 .service-row {
-    grid-template-columns: 1.3fr 2.2fr 65px 45px 80px 95px 28px
+    grid-template-columns: minmax(96px, 1.15fr) minmax(150px, 2fr) 62px 44px 78px 92px 24px
 }
 
 .service-group-label {
@@ -551,8 +559,8 @@ h2 {
 
 .material-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 48px 90px 65px 110px 28px;
-    gap: 8px;
+    grid-template-columns: minmax(88px, 1.35fr) minmax(84px, 1.3fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
+    gap: 6px;
     align-items: center
 }
 
@@ -579,7 +587,7 @@ h2 {
 
 .material-cost[readonly] {
     color: var(--ink);
-    background: #eef5fc
+    background: var(--paper)
 }
 
 .remove-material {
@@ -590,7 +598,7 @@ h2 {
 }
 
 .material-empty {
-    border: 1px dashed #cbd8d4;
+    border: 1px dashed var(--silver);
     color: var(--muted);
     padding: 14px;
     text-align: center;
@@ -598,7 +606,7 @@ h2 {
 }
 
 .summary-card {
-    background: var(--ink);
+    background: var(--navy-deep);
     color: var(--white);
     padding: 18px;
     align-self: start;
@@ -608,7 +616,7 @@ h2 {
 }
 
 .summary-card .eyebrow {
-    color: #9db5af
+    color: var(--silver)
 }
 
 .summary-top {
@@ -618,7 +626,7 @@ h2 {
 
 .summary-date {
     font: 10px 'DM Mono', monospace;
-    color: #9db5af
+    color: var(--silver)
 }
 
 .summary-customer {
@@ -629,15 +637,15 @@ h2 {
 }
 
 .summary-address {
-    color: #9db5af;
+    color: var(--silver);
     font-size: 12px;
     margin-top: 7px;
     min-height: 31px
 }
 
 .summary-lines {
-    border-top: 1px solid #355350;
-    border-bottom: 1px solid #355350;
+    border-top: 1px solid var(--navy);
+    border-bottom: 1px solid var(--navy);
     margin: 14px 0 10px;
     padding: 9px 0;
     display: grid;
@@ -647,7 +655,7 @@ h2 {
 .summary-lines div {
     display: flex;
     justify-content: space-between;
-    color: #afc0bc;
+    color: var(--silver);
     font-size: 12px
 }
 
@@ -659,7 +667,7 @@ h2 {
 .vat-row {
     display: flex;
     justify-content: space-between;
-    color: #aabdb8;
+    color: var(--silver);
     font: 11px 'DM Mono', monospace
 }
 
@@ -677,7 +685,7 @@ h2 {
     width: 27px;
     height: 15px;
     border-radius: 10px;
-    background: #53706d;
+    background: var(--silver-dark);
     position: relative
 }
 
@@ -702,7 +710,7 @@ h2 {
 }
 
 .grand-total {
-    border-top: 1px solid #355350;
+    border-top: 1px solid var(--navy);
     margin-top: 17px;
     padding-top: 15px;
     display: grid;
@@ -710,7 +718,7 @@ h2 {
 }
 
 .grand-total span {
-    color: #afc0bc;
+    color: var(--silver);
     font-size: 12px
 }
 
@@ -737,20 +745,20 @@ h2 {
 }
 
 .primary-button:hover {
-    background: #d8674e
+    background: var(--navy-deep)
 }
 
 .secondary-button {
     background: transparent;
-    color: #b9cbc6;
-    border: 1px solid #41615e;
+    color: var(--silver);
+    border: 1px solid var(--silver-dark);
     margin-top: 10px
 }
 
 .summary-footnote {
     font-size: 10px;
     line-height: 1.5;
-    color: #79908b;
+    color: var(--silver-dark);
     margin: 14px 0 0
 }
 
@@ -927,11 +935,11 @@ h2 {
     }
 
     .material-row {
-        grid-template-columns: 1fr 1fr 1fr 46px 46px 34px 66px 58px 95px 24px
+        grid-template-columns: 1fr 1fr 1fr 40px 74px 56px 84px 22px
     }
 
     .material-headings {
-        grid-template-columns: 1fr 1fr 1fr 46px 46px 34px 66px 58px 95px 24px
+        grid-template-columns: 1fr 1fr 1fr 40px 74px 56px 84px 22px
     }
 
     .service-headings,
@@ -976,12 +984,12 @@ h2 {
     }
 
     .material-row {
-        grid-template-columns: 1fr 1fr 1fr 40px 40px 30px 52px 50px 72px 20px;
+        grid-template-columns: 1fr 1fr 1fr 32px 62px 46px 72px 20px;
         gap: 4px
     }
 
     .material-headings {
-        grid-template-columns: 1fr 1fr 1fr 40px 40px 30px 52px 50px 72px 20px;
+        grid-template-columns: 1fr 1fr 1fr 32px 62px 46px 72px 20px;
         gap: 4px;
         font-size: 8px;
         padding-left: 4px;
@@ -1095,11 +1103,26 @@ h2 {
 .field select,
 .material-row select {
     min-width: 0;
+    width: 100%;
     border: 1px solid var(--line);
     background: var(--white);
-    padding: 7px;
+    padding: 7px 5px;
     border-radius: 3px;
-    color: var(--ink)
+    color: var(--ink);
+    text-overflow: ellipsis
+}
+
+/*
+   Task names in the library run long ("Plaster around window or door").
+   Give the task select a real floor so the chosen item stays readable
+   rather than collapsing to a few characters.
+*/
+.service-row .service-category {
+    min-width: 0
+}
+
+.service-row .service-task {
+    min-width: 0
 }
 
 .material-row select:focus {
@@ -1111,7 +1134,8 @@ h2 {
     width: 155px;
     height: auto;
     display: block;
-    background: #fff
+    background: transparent;
+    border-radius: 3px
 }
 
 .company-print-header img {
@@ -1120,6 +1144,13 @@ h2 {
     margin-bottom: 6px
 }
 
+/*
+   The logo artwork already carries the company name, registration
+   number and address, so the text block below it is only useful on
+   the printed quote. Kept for print, hidden on screen to avoid the
+   address appearing twice in the summary card.
+*/
+.company-print-header,
 .print-details,
 .pdf-button {
     display: none
@@ -1133,9 +1164,9 @@ h2 {
     display: flex;
     width: 100%;
     justify-content: space-between;
-    border: 1px solid #91b9e5;
-    background: #edf5ff;
-    color: #0757b8;
+    border: 1px solid var(--silver);
+    background: var(--paper);
+    color: var(--navy);
     padding: 10px 12px;
     border-radius: 3px;
     font-weight: 800;
@@ -1147,14 +1178,19 @@ h2 {
         display: none
     }
 
+    /* Restore the printed company block that the screen rule hides. */
+    .company-print-header {
+        display: grid
+    }
+
     .quote-terms {
         display: block;
         width: 100%;
         max-width: none;
         margin-top: 0;
         padding-top: 0;
-        color: #183333;
-        border-top: 2px solid #183333;
+        color: var(--black);
+        border-top: 2px solid var(--black);
         break-before: page;
         page-break-before: always;
         break-inside: avoid-page;
@@ -1166,7 +1202,7 @@ h2 {
         align-items: center;
         gap: 12px;
         padding-bottom: 9px;
-        border-bottom: 1px solid #d7e1ee
+        border-bottom: 1px solid var(--line)
     }
 
     .terms-header img {
@@ -1211,7 +1247,7 @@ h2 {
     .quote-acceptance {
         margin-top: 10px;
         padding: 10px;
-        border: 1px solid #183333;
+        border: 1px solid var(--black);
         break-inside: avoid-page;
         page-break-inside: avoid
     }
@@ -1244,7 +1280,7 @@ h2 {
 
     .print-details {
         display: block;
-        color: #183333;
+        color: var(--black);
         margin: 14px 0 0
     }
 
@@ -1254,7 +1290,7 @@ h2 {
         align-items: baseline;
         margin: 0 0 10px;
         padding-bottom: 7px;
-        border-bottom: 1px solid #183333
+        border-bottom: 1px solid var(--black)
     }
 
     .print-document-title span {
@@ -1270,7 +1306,7 @@ h2 {
     .print-customer {
         display: grid;
         gap: 4px;
-        border: 1px solid #d7e1ee;
+        border: 1px solid var(--line);
         padding: 12px;
         font-size: 11px
     }
@@ -1300,7 +1336,7 @@ h2 {
         width: 100%;
         max-height: 150px;
         object-fit: cover;
-        border: 1px solid #d7e1ee
+        border: 1px solid var(--line)
     }
 
     .print-supporting-photos figcaption {
@@ -1324,7 +1360,7 @@ h2 {
 
     body .summary-card .print-details th,
     body .summary-card .print-details td {
-        border-bottom: 1px solid #d7e1ee;
+        border-bottom: 1px solid var(--line);
         padding: 4px 5px;
         text-align: left;
         font-size: 9px !important
@@ -1411,8 +1447,8 @@ h2 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    background: #eef5fc;
-    border: 1px solid #d7e7f8;
+    background: var(--paper);
+    border: 1px solid var(--line);
     padding: 8px 10px;
     margin-bottom: 12px;
     color: var(--muted);
@@ -1433,8 +1469,8 @@ h2 {
     grid-template-columns: 1fr auto;
     align-items: end;
     gap: 16px;
-    background: #eaf3fe;
-    border: 1px solid #d3e5f8;
+    background: var(--paper);
+    border: 1px solid var(--line);
     padding: 15px;
     margin: 18px 0
 }
@@ -1540,7 +1576,7 @@ h2 {
 }
 
 .scenario-dialog::backdrop {
-    background: rgba(18, 59, 112, .28)
+    background: rgba(13, 27, 46, .45)
 }
 
 .scenario-dialog h2 {

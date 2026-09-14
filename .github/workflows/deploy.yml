@@ -1,4 +1,4 @@
-name: Deploy Pipewise to GitHub Pages
+name: Deploy APS to GitHub Pages
 
 on:
   push:
@@ -31,11 +31,11 @@ jobs:
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pipewise website
+      - name: Upload APS website
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
 
-      - name: Deploy Pipewise
+      - name: Deploy APS
         id: deployment
         uses: actions/deploy-pages@v4
