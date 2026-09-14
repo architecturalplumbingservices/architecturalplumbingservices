@@ -7,8 +7,8 @@
    saved quotes, settings and price lists carry over to the new
    company instead of silently disappearing.
    ========================================================= */
-const STORAGE_PREFIX = 'apc-';
-const LEGACY_PREFIX = 'pipewise-';
+const STORAGE_PREFIX = 'ss-';
+const LEGACY_PREFIX = 'apc-';
 
 function migrateLegacyStorage() {
     try {
@@ -41,142 +41,477 @@ let sitePhotos = [];
 let loadedQuoteIndex = null;
 let isAmended = false;
 const defaultLabourItems = () => [
-    { description: 'Call-out fee', unit: 'Each', quantity: 1, rate: 650, type: 'callout' },
-    { description: 'Inspection & evaluation', unit: 'Day', quantity: 0, rate: 500, type: 'labour' },
     { description: 'Additional labour', unit: 'Day', quantity: 0, rate: 500, type: 'labour' }
 ];
 let labourItems = defaultLabourItems();
 let importedServiceRates = {};
 let settings = JSON.parse(localStorage.getItem(storageKey('settings')) || '{}');
-settings.name ||= 'APS Architectural Performance Coatings';
-settings.preparedBy ||= 'Cheyenne';
-settings.phone ||= '010 597 6616';
-settings.email ||= 'info@agasouthafrica.co.za';
+settings.name ||= 'Shady Shaun';
+settings.preparedBy ||= 'Shaun';
+settings.phone ||= '071 683 1908';
+settings.email ||= 'info@shadyshaun.co.za';
 settings.taxNumber ||= '105 976 616';
 let quotes = JSON.parse(localStorage.getItem(storageKey('quotes')) || '[]');
 /* =========================================================
    MATERIAL CATALOGUE
    ---------------------------------------------------------
-   Hardware and handyman materials only. Costs below are
-   internal reference costs used when no supplier price is
-   found for an item; a live supplier price always wins.
-   Verify against a supplier invoice before quoting.
+   Three levels deep so a quote can be built quickly:
+
+     Category  -> Sub-group (sub-subcategory) -> Type -> Size
+   Costs below are internal reference costs used when no
+   supplier price is found for an item; a live supplier price
+   always wins. Verify against a supplier invoice before
+   quoting.
+
+   IMPORTANT: every leaf keeps the { sizes, markup } shape, and
+   materialItem()/materialTypes() below resolve a type whether
+   it sits under a sub-group or directly under a category, so
+   older saved quotes (category + type + size, no sub-group)
+   keep resolving.
    ========================================================= */
 const materialCatalogue = {
     'Fasteners & fixings': {
-        'Wood screw': { sizes: { '4 x 40mm (100)': 65, '5 x 60mm (100)': 95, '6 x 80mm (50)': 85 }, markup: MATERIAL_MARKUP },
-        'Chipboard screw': { sizes: { '4 x 40mm (200)': 110, '5 x 50mm (100)': 95 }, markup: MATERIAL_MARKUP },
-        'Self-drilling screw': { sizes: { '8 x 25mm (100)': 120, '10 x 50mm (50)': 140 }, markup: MATERIAL_MARKUP },
-        'Masonry anchor': { sizes: { '8mm (25)': 180, '10mm (25)': 240 }, markup: MATERIAL_MARKUP },
-        'Rawl plug': { sizes: { '6mm (100)': 55, '8mm (100)': 75 }, markup: MATERIAL_MARKUP },
-        'Wall plug & screw set': { sizes: { 'Assorted (100)': 145 }, markup: MATERIAL_MARKUP },
-        'Coach screw': { sizes: { '8 x 75mm (10)': 95, '10 x 100mm (10)': 145 }, markup: MATERIAL_MARKUP },
-        'Nut & bolt set': { sizes: { 'M8 (25)': 165, 'M10 (25)': 225 }, markup: MATERIAL_MARKUP },
-        'Washer': { sizes: { 'M8 (100)': 65, 'M10 (100)': 85 }, markup: MATERIAL_MARKUP }
+        'Screws': {
+            'Wood screw': { sizes: { '4 x 40mm (100)': 65, '5 x 60mm (100)': 95, '6 x 80mm (50)': 85 }, markup: MATERIAL_MARKUP },
+            'Chipboard screw': { sizes: { '4 x 40mm (200)': 110, '5 x 50mm (100)': 95 }, markup: MATERIAL_MARKUP },
+            'Self-drilling screw': { sizes: { '8 x 25mm (100)': 120, '10 x 50mm (50)': 140 }, markup: MATERIAL_MARKUP },
+            'Coach screw': { sizes: { '8 x 75mm (10)': 95, '10 x 100mm (10)': 145 }, markup: MATERIAL_MARKUP },
+            'Machine screw': { sizes: { 'M6 x 50mm (25)': 85, 'M8 x 50mm (25)': 105 }, markup: MATERIAL_MARKUP },
+            'Roofing screw': { sizes: { '65mm (250)': 195, '75mm (250)': 235 }, markup: MATERIAL_MARKUP }
+        },
+        'Anchors & plugs': {
+            'Masonry anchor': { sizes: { '8mm (25)': 180, '10mm (25)': 240 }, markup: MATERIAL_MARKUP },
+            'Rawl plug': { sizes: { '6mm (100)': 55, '8mm (100)': 75 }, markup: MATERIAL_MARKUP },
+            'Wall plug & screw set': { sizes: { 'Assorted (100)': 145 }, markup: MATERIAL_MARKUP },
+            'Nylon anchor': { sizes: { '8mm (25)': 165, '10mm (25)': 215 }, markup: MATERIAL_MARKUP },
+            'Concrete bolt': { sizes: { '10 x 100mm (10)': 185, '12 x 120mm (10)': 245 }, markup: MATERIAL_MARKUP },
+            'Chemical anchor': { sizes: { '300ml': 285, '380ml': 345 }, markup: MATERIAL_MARKUP }
+        },
+        'Nuts, bolts & washers': {
+            'Nut & bolt set': { sizes: { 'M8 (25)': 165, 'M10 (25)': 225 }, markup: MATERIAL_MARKUP },
+            'Washer': { sizes: { 'M8 (100)': 65, 'M10 (100)': 85 }, markup: MATERIAL_MARKUP },
+            'Threaded rod': { sizes: { 'M8 x 1m': 95, 'M10 x 1m': 145 }, markup: MATERIAL_MARKUP },
+            'Spring washer': { sizes: { 'M8 (100)': 55, 'M10 (100)': 75 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Tools & consumables': {
-        'Drill bit set': { sizes: { 'HSS 1-10mm': 185, 'Masonry 4-10mm': 145, 'Wood 3-10mm': 165 }, markup: MATERIAL_MARKUP },
-        'Cutting disc': { sizes: { '115mm metal': 35, '230mm metal': 75, '115mm stone': 45 }, markup: MATERIAL_MARKUP },
-        'Sanding paper': { sizes: { '80 grit (10)': 65, '120 grit (10)': 65, '180 grit (10)': 70 }, markup: MATERIAL_MARKUP },
-        'Silicone sealant': { sizes: { '280ml clear': 95, '280ml white': 95, '280ml black': 105 }, markup: MATERIAL_MARKUP },
-        'Wood filler': { sizes: { '500g': 95, '1kg': 165 }, markup: MATERIAL_MARKUP },
-        'Masking tape': { sizes: { '24mm x 50m': 45, '48mm x 50m': 75 }, markup: MATERIAL_MARKUP },
-        'Duct tape': { sizes: { '48mm x 25m': 65 }, markup: MATERIAL_MARKUP },
-        'Glue & adhesive': { sizes: { 'Wood glue 500ml': 95, 'Contact adhesive 1L': 185, 'Construction adhesive 300ml': 125 }, markup: MATERIAL_MARKUP },
-        'Paint brush & roller set': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP },
-        'Paint tray': { sizes: { Standard: 65 }, markup: MATERIAL_MARKUP },
-        'Rags & cleaning cloth': { sizes: { 'Pack of 5': 55 }, markup: MATERIAL_MARKUP }
+        'Drill & cut': {
+            'Drill bit set': { sizes: { 'HSS 1-10mm': 185, 'Masonry 4-10mm': 145, 'Wood 3-10mm': 165 }, markup: MATERIAL_MARKUP },
+            'Hole saw': { sizes: { '25mm': 95, '50mm': 145, '75mm': 195 }, markup: MATERIAL_MARKUP },
+            'Cutting disc': { sizes: { '115mm metal': 35, '230mm metal': 75, '115mm stone': 45 }, markup: MATERIAL_MARKUP },
+            'Grinding disc': { sizes: { '115mm': 45, '230mm': 85 }, markup: MATERIAL_MARKUP },
+            'Jigsaw blade': { sizes: { 'Wood (5)': 95, 'Metal (5)': 125 }, markup: MATERIAL_MARKUP },
+            'Reciprocating blade': { sizes: { 'Wood (5)': 145, 'Metal (5)': 175 }, markup: MATERIAL_MARKUP }
+        },
+        'Sanding & finishing': {
+            'Sanding paper': { sizes: { '80 grit (10)': 65, '120 grit (10)': 65, '180 grit (10)': 70 }, markup: MATERIAL_MARKUP },
+            'Sandpaper roll': { sizes: { '115mm x 5m': 145 }, markup: MATERIAL_MARKUP },
+            'Steel wool': { sizes: { 'Coarse (2)': 65, 'Fine (2)': 75 }, markup: MATERIAL_MARKUP },
+            'Wood filler': { sizes: { '500g': 95, '1kg': 165 }, markup: MATERIAL_MARKUP },
+            'Wall filler': { sizes: { '5kg': 185, '10kg': 325 }, markup: MATERIAL_MARKUP }
+        },
+        'Tapes & adhesives': {
+            'Masking tape': { sizes: { '24mm x 50m': 45, '48mm x 50m': 75 }, markup: MATERIAL_MARKUP },
+            'Duct tape': { sizes: { '48mm x 25m': 65 }, markup: MATERIAL_MARKUP },
+            'Double-sided tape': { sizes: { '12mm x 20m': 55, '24mm x 20m': 85 }, markup: MATERIAL_MARKUP },
+            'Glue & adhesive': { sizes: { 'Wood glue 500ml': 95, 'Contact adhesive 1L': 185, 'Construction adhesive 300ml': 125 }, markup: MATERIAL_MARKUP },
+            'Silicone sealant': { sizes: { '280ml clear': 95, '280ml white': 95, '280ml black': 105 }, markup: MATERIAL_MARKUP },
+            'Acrylic sealer': { sizes: { '280ml white': 75 }, markup: MATERIAL_MARKUP },
+            'PU foam': { sizes: { '750ml': 125 }, markup: MATERIAL_MARKUP }
+        },
+        'Painting aids': {
+            'Paint brush & roller set': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP },
+            'Paint tray': { sizes: { Standard: 65 }, markup: MATERIAL_MARKUP },
+            'Rags & cleaning cloth': { sizes: { 'Pack of 5': 55 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Electrical': {
-        'Plug point / socket outlet': { sizes: { 'Single 16A': 185, 'Double 16A': 265 }, markup: MATERIAL_MARKUP },
-        'Light switch': { sizes: { 'Single 1-way': 95, 'Double 2-way': 165 }, markup: MATERIAL_MARKUP },
-        'Light fitting': { sizes: { 'Ceiling batten': 185, 'LED downlight': 145, 'Bulkhead': 265 }, markup: MATERIAL_MARKUP },
-        'LED lamp': { sizes: { '9W bayonet': 65, '12W screw': 75, '20W flood': 295 }, markup: MATERIAL_MARKUP },
-        'Electrical cable': { sizes: { '1.5mm x 100m': 850, '2.5mm x 100m': 1450, '4mm x 100m': 2200 }, markup: MATERIAL_MARKUP },
-        'Float switch': { sizes: { '2m': 850, '5m': 1450 }, markup: MATERIAL_MARKUP },
-        'Mounting board': { sizes: { '3 x 3': 85, '4 x 4': 110 }, markup: MATERIAL_MARKUP },
-        'Cable trunking': { sizes: { '20 x 12mm x 2m': 45, '40 x 25mm x 2m': 95 }, markup: MATERIAL_MARKUP },
-        'Cable gland': { sizes: { '20mm (10)': 75, '25mm (10)': 95 }, markup: MATERIAL_MARKUP },
-        'Circular box': { sizes: { Standard: 35 }, markup: MATERIAL_MARKUP }
+        'Sockets & switches': {
+            'Plug point / socket outlet': { sizes: { 'Single 16A': 185, 'Double 16A': 265 }, markup: MATERIAL_MARKUP },
+            'Light switch': { sizes: { 'Single 1-way': 95, 'Double 2-way': 165 }, markup: MATERIAL_MARKUP },
+            'Dimmer switch': { sizes: { 'Single': 245, 'Double': 385 }, markup: MATERIAL_MARKUP },
+            'Two-way switch': { sizes: { 'Single': 145 }, markup: MATERIAL_MARKUP },
+            'USB socket outlet': { sizes: { 'Double 16A': 385 }, markup: MATERIAL_MARKUP },
+            'Cover plate': { sizes: { 'Single': 45, 'Double': 65 }, markup: MATERIAL_MARKUP }
+        },
+        'Lighting': {
+            'Light fitting': { sizes: { 'Ceiling batten': 185, 'LED downlight': 145, 'Bulkhead': 265 }, markup: MATERIAL_MARKUP },
+            'LED lamp': { sizes: { '9W bayonet': 65, '12W screw': 75, '20W flood': 295 }, markup: MATERIAL_MARKUP },
+            'LED panel': { sizes: { '600 x 600mm': 385, '1200 x 300mm': 425 }, markup: MATERIAL_MARKUP },
+            'Fluorescent fitting': { sizes: { 'Single 1.2m': 285, 'Double 1.2m': 385 }, markup: MATERIAL_MARKUP },
+            'Flood light': { sizes: { '20W': 185, '50W': 345, '100W': 585 }, markup: MATERIAL_MARKUP },
+            'Garden spike light': { sizes: { '5W': 165 }, markup: MATERIAL_MARKUP }
+        },
+        'Cable & accessories': {
+            'Electrical cable': { sizes: { '1.5mm x 100m': 850, '2.5mm x 100m': 1450, '4mm x 100m': 2200 }, markup: MATERIAL_MARKUP },
+            'Cable trunking': { sizes: { '20 x 12mm x 2m': 45, '40 x 25mm x 2m': 95 }, markup: MATERIAL_MARKUP },
+            'Cable gland': { sizes: { '20mm (10)': 75, '25mm (10)': 95 }, markup: MATERIAL_MARKUP },
+            'Circular box': { sizes: { Standard: 35 }, markup: MATERIAL_MARKUP },
+            'Mounting board': { sizes: { '3 x 3': 85, '4 x 4': 110 }, markup: MATERIAL_MARKUP },
+            'Conduit & fittings': { sizes: { '20mm x 4m': 65, '25mm x 4m': 95 }, markup: MATERIAL_MARKUP },
+            'Cable clips': { sizes: { '6mm (100)': 55, '8mm (100)': 65 }, markup: MATERIAL_MARKUP }
+        },
+        'Distribution & protection': {
+            'Circuit breaker': { sizes: { '20A': 145, '32A': 185, '63A': 265 }, markup: MATERIAL_MARKUP },
+            'Earth leakage unit': { sizes: { '2-pole 63A': 685 }, markup: MATERIAL_MARKUP },
+            'Distribution board': { sizes: { '6-way': 485, '12-way': 685 }, markup: MATERIAL_MARKUP },
+            'Surge protector': { sizes: { 'Single phase': 585 }, markup: MATERIAL_MARKUP },
+            'Float switch': { sizes: { '2m': 850, '5m': 1450 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Building & masonry': {
-        'Cement': { sizes: { '50kg PPC': 125, '50kg rapid': 165 }, markup: MATERIAL_MARKUP },
-        'Building sand': { sizes: { '1 tonne': 450, '10 tonne load': 3800 }, markup: MATERIAL_MARKUP },
-        'Plaster sand': { sizes: { '1 tonne': 480, '10 tonne load': 4200 }, markup: MATERIAL_MARKUP },
-        'Stone / aggregate': { sizes: { '19mm 1 tonne': 550, '13mm 1 tonne': 580 }, markup: MATERIAL_MARKUP },
-        'Brick': { sizes: { 'Clay stock (1000)': 3200, 'Cement stock (1000)': 2800, 'Face brick (1000)': 4500 }, markup: MATERIAL_MARKUP },
-        'Concrete block': { sizes: { '140mm (100)': 1850, '190mm (100)': 2450 }, markup: MATERIAL_MARKUP },
-        'Steel reinforcing': { sizes: { '8mm x 6m': 95, '10mm x 6m': 145, '12mm x 6m': 205 }, markup: MATERIAL_MARKUP },
-        'Mesh reinforcement': { sizes: { 'A142 2.4 x 6m': 950 }, markup: MATERIAL_MARKUP },
-        'Damp-proof course': { sizes: { '112mm x 30m': 385 }, markup: MATERIAL_MARKUP },
-        'Concrete lintel': { sizes: { '110 x 75 x 1200mm': 285, '110 x 75 x 1800mm': 420 }, markup: MATERIAL_MARKUP },
-        'Plasterboard': { sizes: { '1.2 x 2.4m x 9.5mm': 265, '1.2 x 2.4m x 12.5mm': 345 }, markup: MATERIAL_MARKUP },
-        'Ceiling board': { sizes: { '1.2 x 2.4m x 6.4mm': 195 }, markup: MATERIAL_MARKUP },
-        'Corner bead': { sizes: { '2.4m': 45 }, markup: MATERIAL_MARKUP },
-        'Roofing sheet': { sizes: { '0.47mm x 3m': 425, '0.53mm x 3m': 520 }, markup: MATERIAL_MARKUP },
-        'Roof timber': { sizes: { '38 x 50 x 3m': 145, '50 x 76 x 3m': 245 }, markup: MATERIAL_MARKUP }
+        'Cement & sand': {
+            'Cement': { sizes: { '50kg PPC': 125, '50kg rapid': 165 }, markup: MATERIAL_MARKUP },
+            'Building sand': { sizes: { '1 tonne': 450, '10 tonne load': 3800 }, markup: MATERIAL_MARKUP },
+            'Plaster sand': { sizes: { '1 tonne': 480, '10 tonne load': 4200 }, markup: MATERIAL_MARKUP },
+            'Stone / aggregate': { sizes: { '19mm 1 tonne': 550, '13mm 1 tonne': 580 }, markup: MATERIAL_MARKUP },
+            'Concrete mix': { sizes: { '40kg bag': 105 }, markup: MATERIAL_MARKUP }
+        },
+        'Bricks & blocks': {
+            'Brick': { sizes: { 'Clay stock (1000)': 3200, 'Cement stock (1000)': 2800, 'Face brick (1000)': 4500 }, markup: MATERIAL_MARKUP },
+            'Concrete block': { sizes: { '140mm (100)': 1850, '190mm (100)': 2450 }, markup: MATERIAL_MARKUP },
+            'Paving brick': { sizes: { '60mm Interlock (1000)': 4500 }, markup: MATERIAL_MARKUP },
+            'Maxi brick': { sizes: { '290 x 140 x 90mm (1000)': 3200 }, markup: MATERIAL_MARKUP }
+        },
+        'Reinforcement': {
+            'Steel reinforcing': { sizes: { '8mm x 6m': 95, '10mm x 6m': 145, '12mm x 6m': 205 }, markup: MATERIAL_MARKUP },
+            'Mesh reinforcement': { sizes: { 'A142 2.4 x 6m': 950 }, markup: MATERIAL_MARKUP },
+            'Binding wire': { sizes: { '1.6mm x 25m': 85 }, markup: MATERIAL_MARKUP }
+        },
+        'Lintels & damp course': {
+            'Concrete lintel': { sizes: { '110 x 75 x 1200mm': 285, '110 x 75 x 1800mm': 420 }, markup: MATERIAL_MARKUP },
+            'Damp-proof course': { sizes: { '112mm x 30m': 385 }, markup: MATERIAL_MARKUP }
+        },
+        'Boards & ceilings': {
+            'Plasterboard': { sizes: { '1.2 x 2.4m x 9.5mm': 265, '1.2 x 2.4m x 12.5mm': 345 }, markup: MATERIAL_MARKUP },
+            'Ceiling board': { sizes: { '1.2 x 2.4m x 6.4mm': 195 }, markup: MATERIAL_MARKUP },
+            'Corner bead': { sizes: { '2.4m': 45 }, markup: MATERIAL_MARKUP }
+        },
+        'Roofing': {
+            'Roofing sheet': { sizes: { '0.47mm x 3m': 425, '0.53mm x 3m': 520 }, markup: MATERIAL_MARKUP },
+            'Roof timber': { sizes: { '38 x 50 x 3m': 145, '50 x 76 x 3m': 245 }, markup: MATERIAL_MARKUP },
+            'Roof tile': { sizes: { 'Concrete (per m2)': 285 }, markup: MATERIAL_MARKUP },
+            'Ridge tile': { sizes: { 'Standard': 85 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Plaster & coatings': {
-        'Plaster skim': { sizes: { '25kg': 195, '40kg': 285 }, markup: MATERIAL_MARKUP },
-        'Wall plaster': { sizes: { '40kg undercoat': 225 }, markup: MATERIAL_MARKUP },
-        'Bonding liquid': { sizes: { '5L': 285, '20L': 850 }, markup: MATERIAL_MARKUP },
-        'Interior paint': { sizes: { '20L white': 1150, '20L tint': 1350, '5L white': 385 }, markup: MATERIAL_MARKUP },
-        'Exterior paint': { sizes: { '20L white': 1450, '20L tint': 1650 }, markup: MATERIAL_MARKUP },
-        'Primer / sealer': { sizes: { '20L': 985, '5L': 325 }, markup: MATERIAL_MARKUP },
-        'Waterproofing membrane': { sizes: { '20kg cementitious': 885, '4kg liquid': 425 }, markup: MATERIAL_MARKUP },
-        'Roof waterproofing': { sizes: { '20L acrylic': 1250, '20kg torch-on': 1450 }, markup: MATERIAL_MARKUP },
-        'Epoxy floor coating': { sizes: { '5kg kit': 1450, '20kg kit': 4850 }, markup: MATERIAL_MARKUP },
-        'Tile adhesive': { sizes: { '20kg standard': 145, '20kg flexible': 245 }, markup: MATERIAL_MARKUP },
-        'Tile grout': { sizes: { '5kg': 95, '20kg': 285 }, markup: MATERIAL_MARKUP },
-        'Thinners': { sizes: { '5L': 185, '20L': 620 }, markup: MATERIAL_MARKUP }
+        'Plaster & skim': {
+            'Plaster skim': { sizes: { '25kg': 195, '40kg': 285 }, markup: MATERIAL_MARKUP },
+            'Wall plaster': { sizes: { '40kg undercoat': 225 }, markup: MATERIAL_MARKUP },
+            'Bonding liquid': { sizes: { '5L': 285, '20L': 850 }, markup: MATERIAL_MARKUP },
+            'Cement screed': { sizes: { '40kg': 195 }, markup: MATERIAL_MARKUP }
+        },
+        'Paint': {
+            'Interior paint': { sizes: { '20L white': 1150, '20L tint': 1350, '5L white': 385 }, markup: MATERIAL_MARKUP },
+            'Exterior paint': { sizes: { '20L white': 1450, '20L tint': 1650 }, markup: MATERIAL_MARKUP },
+            'Primer / sealer': { sizes: { '20L': 985, '5L': 325 }, markup: MATERIAL_MARKUP },
+            'Enamel paint': { sizes: { '5L': 485, '20L': 1650 }, markup: MATERIAL_MARKUP },
+            'Roof paint': { sizes: { '20L': 1250 }, markup: MATERIAL_MARKUP },
+            'Thinners': { sizes: { '5L': 185, '20L': 620 }, markup: MATERIAL_MARKUP }
+        },
+        'Waterproofing': {
+            'Waterproofing membrane': { sizes: { '20kg cementitious': 885, '4kg liquid': 425 }, markup: MATERIAL_MARKUP },
+            'Roof waterproofing': { sizes: { '20L acrylic': 1250, '20kg torch-on': 1450 }, markup: MATERIAL_MARKUP },
+            'Damp-proof sealer': { sizes: { '20L': 985 }, markup: MATERIAL_MARKUP }
+        },
+        'Floor & tile': {
+            'Epoxy floor coating': { sizes: { '5kg kit': 1450, '20kg kit': 4850 }, markup: MATERIAL_MARKUP },
+            'Tile adhesive': { sizes: { '20kg standard': 145, '20kg flexible': 245 }, markup: MATERIAL_MARKUP },
+            'Tile grout': { sizes: { '5kg': 95, '20kg': 285 }, markup: MATERIAL_MARKUP },
+            'Floor sealer': { sizes: { '5L': 385, '20L': 1250 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Doors, windows & joinery': {
-        'Door': { sizes: { 'Hollow core': 985, 'Solid core': 1850, 'External hardwood': 2650 }, markup: MATERIAL_MARKUP },
-        'Door frame': { sizes: { 'Single': 685, 'Double': 1250 }, markup: MATERIAL_MARKUP },
-        'Door handle': { sizes: { 'Lever set': 285, 'Round knob set': 225 }, markup: MATERIAL_MARKUP },
-        'Door lock': { sizes: { 'Cylinder lock': 385, 'Mortice lock': 685, 'Padbolt': 145 }, markup: MATERIAL_MARKUP },
-        'Hinge': { sizes: { '75mm (2)': 55, '100mm (2)': 85 }, markup: MATERIAL_MARKUP },
-        'Window frame': { sizes: { '900 x 1200mm': 1850 }, markup: MATERIAL_MARKUP },
-        'Trellis door': { sizes: { Standard: 1250 }, markup: MATERIAL_MARKUP },
-        'Gate latch': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP },
-        'Gate hinge': { sizes: { 'Pair': 165 }, markup: MATERIAL_MARKUP },
-        'Skirting board': { sizes: { '2.4m x 69mm': 145, '2.4m x 89mm': 185 }, markup: MATERIAL_MARKUP },
-        'Architrave': { sizes: { '2.4m': 95 }, markup: MATERIAL_MARKUP },
-        'Timber plank': { sizes: { '25 x 228 x 3m': 385, '38 x 228 x 3m': 545 }, markup: MATERIAL_MARKUP }
+        'Doors': {
+            'Door': { sizes: { 'Hollow core': 985, 'Solid core': 1850, 'External hardwood': 2650 }, markup: MATERIAL_MARKUP },
+            'Trellis door': { sizes: { Standard: 1250 }, markup: MATERIAL_MARKUP },
+            'Door frame': { sizes: { 'Single': 685, 'Double': 1250 }, markup: MATERIAL_MARKUP },
+            'Door jamb': { sizes: { '2.1m': 245 }, markup: MATERIAL_MARKUP }
+        },
+        'Door hardware': {
+            'Door handle': { sizes: { 'Lever set': 285, 'Round knob set': 225 }, markup: MATERIAL_MARKUP },
+            'Door lock': { sizes: { 'Cylinder lock': 385, 'Mortice lock': 685, 'Padbolt': 145 }, markup: MATERIAL_MARKUP },
+            'Hinge': { sizes: { '75mm (2)': 55, '100mm (2)': 85 }, markup: MATERIAL_MARKUP },
+            'Door closer': { sizes: { Standard: 485 }, markup: MATERIAL_MARKUP },
+            'Door stopper': { sizes: { Standard: 45 }, markup: MATERIAL_MARKUP }
+        },
+        'Windows & gates': {
+            'Window frame': { sizes: { '900 x 1200mm': 1850 }, markup: MATERIAL_MARKUP },
+            'Gate latch': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP },
+            'Gate hinge': { sizes: { 'Pair': 165 }, markup: MATERIAL_MARKUP },
+            'Window glass': { sizes: { '4mm (per m2)': 385 }, markup: MATERIAL_MARKUP },
+            'Insect screen': { sizes: { '900 x 1200mm': 285 }, markup: MATERIAL_MARKUP }
+        },
+        'Trims & boards': {
+            'Skirting board': { sizes: { '2.4m x 69mm': 145, '2.4m x 89mm': 185 }, markup: MATERIAL_MARKUP },
+            'Architrave': { sizes: { '2.4m': 95 }, markup: MATERIAL_MARKUP },
+            'Timber plank': { sizes: { '25 x 228 x 3m': 385, '38 x 228 x 3m': 545 }, markup: MATERIAL_MARKUP },
+            'Quadrant moulding': { sizes: { '2.4m': 65 }, markup: MATERIAL_MARKUP },
+            'Cornice': { sizes: { '2.4m': 95 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Shelving & hardware': {
-        'Shelf bracket': { sizes: { '200mm (2)': 85, '250mm (2)': 105 }, markup: MATERIAL_MARKUP },
-        'Shelving board': { sizes: { '1.2m x 300mm': 245, '1.8m x 300mm': 345 }, markup: MATERIAL_MARKUP },
-        'Corner brace': { sizes: { '50mm (4)': 65, '75mm (4)': 85 }, markup: MATERIAL_MARKUP },
-        'Angle bracket': { sizes: { '40mm (10)': 95, '60mm (10)': 145 }, markup: MATERIAL_MARKUP },
-        'Padlock': { sizes: { '40mm': 145, '50mm': 195 }, markup: MATERIAL_MARKUP },
-        'Chain': { sizes: { '4mm x 10m': 285 }, markup: MATERIAL_MARKUP },
-        'Rope & cord': { sizes: { '8mm x 10m': 145, '10mm x 10m': 195 }, markup: MATERIAL_MARKUP },
-        'Wire & fencing': { sizes: { '1.6mm x 50m': 285, 'Diamond mesh 1.8m x 10m': 1250 }, markup: MATERIAL_MARKUP },
-        'Steel post': { sizes: { '1.8m': 385, '2.4m': 495 }, markup: MATERIAL_MARKUP }
+        'Brackets & supports': {
+            'Shelf bracket': { sizes: { '200mm (2)': 85, '250mm (2)': 105 }, markup: MATERIAL_MARKUP },
+            'Corner brace': { sizes: { '50mm (4)': 65, '75mm (4)': 85 }, markup: MATERIAL_MARKUP },
+            'Angle bracket': { sizes: { '40mm (10)': 95, '60mm (10)': 145 }, markup: MATERIAL_MARKUP },
+            'Floating shelf support': { sizes: { 'Pair': 125 }, markup: MATERIAL_MARKUP },
+            'Steel post': { sizes: { '1.8m': 385, '2.4m': 495 }, markup: MATERIAL_MARKUP }
+        },
+        'Shelves': {
+            'Shelving board': { sizes: { '1.2m x 300mm': 245, '1.8m x 300mm': 345 }, markup: MATERIAL_MARKUP },
+            'Plywood shelf': { sizes: { '18mm 1.2 x 0.3m': 285 }, markup: MATERIAL_MARKUP }
+        },
+        'Security & rope': {
+            'Padlock': { sizes: { '40mm': 145, '50mm': 195 }, markup: MATERIAL_MARKUP },
+            'Chain': { sizes: { '4mm x 10m': 285 }, markup: MATERIAL_MARKUP },
+            'Rope & cord': { sizes: { '8mm x 10m': 145, '10mm x 10m': 195 }, markup: MATERIAL_MARKUP },
+            'Wire & fencing': { sizes: { '1.6mm x 50m': 285, 'Diamond mesh 1.8m x 10m': 1250 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Kitchen & appliance fittings': {
-        'Cupboard hinge': { sizes: { 'Standard (2)': 95, 'Soft close (2)': 165 }, markup: MATERIAL_MARKUP },
-        'Drawer runner': { sizes: { '450mm pair': 145, '500mm pair': 185 }, markup: MATERIAL_MARKUP },
-        'Cupboard handle': { sizes: { Standard: 65, 'Long bar': 125 }, markup: MATERIAL_MARKUP },
-        'Counter top': { sizes: { 'Postform 3m': 1250, 'Granite 3m': 4850 }, markup: MATERIAL_MARKUP },
-        'Kitchen sink': { sizes: { '1 bowl': 895, '1.5 bowl': 1450, '2 bowl': 1950 }, markup: MATERIAL_MARKUP },
-        'Sink tap': { sizes: { 'Pillar': 685, 'Mixer': 1150 }, markup: MATERIAL_MARKUP },
-        'Extractor fan': { sizes: { 'Standard 100mm': 685, 'Bathroom 150mm': 895 }, markup: MATERIAL_MARKUP },
-        'Appliance valve': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP }
+        'Cabinet fittings': {
+            'Cupboard hinge': { sizes: { 'Standard (2)': 95, 'Soft close (2)': 165 }, markup: MATERIAL_MARKUP },
+            'Drawer runner': { sizes: { '450mm pair': 145, '500mm pair': 185 }, markup: MATERIAL_MARKUP },
+            'Cupboard handle': { sizes: { Standard: 65, 'Long bar': 125 }, markup: MATERIAL_MARKUP },
+            'Cabinet leg': { sizes: { '100mm (4)': 95, '150mm (4)': 125 }, markup: MATERIAL_MARKUP }
+        },
+        'Counter tops & sinks': {
+            'Counter top': { sizes: { 'Postform 3m': 1250, 'Granite 3m': 4850 }, markup: MATERIAL_MARKUP },
+            'Kitchen sink': { sizes: { '1 bowl': 895, '1.5 bowl': 1450, '2 bowl': 1950 }, markup: MATERIAL_MARKUP },
+            'Sink tap': { sizes: { 'Pillar': 685, 'Mixer': 1150 }, markup: MATERIAL_MARKUP },
+            'Waste & trap': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP }
+        },
+        'Appliances & plumbing': {
+            'Extractor fan': { sizes: { 'Standard 100mm': 685, 'Bathroom 150mm': 895 }, markup: MATERIAL_MARKUP },
+            'Appliance valve': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP },
+            'Flexible connector': { sizes: { '300mm': 85, '500mm': 125 }, markup: MATERIAL_MARKUP },
+            'Washing machine tap': { sizes: { Standard: 245 }, markup: MATERIAL_MARKUP }
+        }
     },
     'Safety & site': {
-        'Safety glasses': { sizes: { Standard: 85 }, markup: MATERIAL_MARKUP },
-        'Work gloves': { sizes: { 'Leather pair': 125, 'Latex pair': 45 }, markup: MATERIAL_MARKUP },
-        'Dust mask': { sizes: { 'FFP2 (10)': 185 }, markup: MATERIAL_MARKUP },
-        'Ear plugs': { sizes: { 'Pack of 10': 65 }, markup: MATERIAL_MARKUP },
-        'Rubble bags': { sizes: { 'Pack of 10': 95 }, markup: MATERIAL_MARKUP },
-        'Plastic sheeting': { sizes: { '4m x 25m': 285 }, markup: MATERIAL_MARKUP },
-        'Drop sheet': { sizes: { '3.6 x 2.7m': 145 }, markup: MATERIAL_MARKUP },
-        'Extension lead': { sizes: { '10m': 485, '20m': 785 }, markup: MATERIAL_MARKUP }
+        'Personal protection': {
+            'Safety glasses': { sizes: { Standard: 85 }, markup: MATERIAL_MARKUP },
+            'Work gloves': { sizes: { 'Leather pair': 125, 'Latex pair': 45 }, markup: MATERIAL_MARKUP },
+            'Dust mask': { sizes: { 'FFP2 (10)': 185 }, markup: MATERIAL_MARKUP },
+            'Ear plugs': { sizes: { 'Pack of 10': 65 }, markup: MATERIAL_MARKUP },
+            'Safety helmet': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP },
+            'Safety vest': { sizes: { Standard: 95 }, markup: MATERIAL_MARKUP }
+        },
+        'Site protection': {
+            'Rubble bags': { sizes: { 'Pack of 10': 95 }, markup: MATERIAL_MARKUP },
+            'Plastic sheeting': { sizes: { '4m x 25m': 285 }, markup: MATERIAL_MARKUP },
+            'Drop sheet': { sizes: { '3.6 x 2.7m': 145 }, markup: MATERIAL_MARKUP },
+            'Barrier tape': { sizes: { '500m': 95 }, markup: MATERIAL_MARKUP },
+            'Warning sign': { sizes: { Standard: 125 }, markup: MATERIAL_MARKUP }
+        },
+        'Power & access': {
+            'Extension lead': { sizes: { '10m': 485, '20m': 785 }, markup: MATERIAL_MARKUP },
+            'Lead plug & socket': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP },
+            'Access ladder': { sizes: { '2.4m': 1450, '3.6m': 2450 }, markup: MATERIAL_MARKUP },
+            'Work light': { sizes: { 'LED 30W': 485 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    /* =================================================================
+       CONSTRUCTION SITE MATERIALS
+       ------------------------------------------------------------
+       Supply items a general building contractor buys for site: mix
+       and place concrete, formwork timber, rebar and mesh, structural
+       steel, roofing, brickforce and DPC, wet-trade sundries and site
+       consumables. Same Category -> Sub-group -> Type -> Size shape.
+       ================================================================= */
+    'Concrete & aggregates': {
+        'Cement & mix': {
+            'Cement': { sizes: { '50kg PPC': 125, '50kg rapid': 165 }, markup: MATERIAL_MARKUP },
+            'Ready-mix concrete': { sizes: { '20MPa (per m3)': 1450, '25MPa (per m3)': 1580, '30MPa (per m3)': 1720 }, markup: MATERIAL_MARKUP },
+            'Concrete mix': { sizes: { '40kg bag': 105 }, markup: MATERIAL_MARKUP }
+        },
+        'Aggregates': {
+            'Building sand': { sizes: { '1 tonne': 450, '10 tonne load': 3800 }, markup: MATERIAL_MARKUP },
+            'Plaster sand': { sizes: { '1 tonne': 480, '10 tonne load': 4200 }, markup: MATERIAL_MARKUP },
+            'Stone / aggregate': { sizes: { '19mm 1 tonne': 550, '13mm 1 tonne': 580 }, markup: MATERIAL_MARKUP },
+            'Crusher run': { sizes: { '1 tonne': 480, '10 tonne load': 3950 }, markup: MATERIAL_MARKUP }
+        },
+        'Concrete accessories': {
+            'Concrete admixture': { sizes: { '5L': 285, '20L': 985 }, markup: MATERIAL_MARKUP },
+            'Curing compound': { sizes: { '20L': 685 }, markup: MATERIAL_MARKUP },
+            'Concrete release agent': { sizes: { '20L': 585 }, markup: MATERIAL_MARKUP },
+            'Polyurethane sealant': { sizes: { '600ml': 185 }, markup: MATERIAL_MARKUP },
+            'Expansion joint filler': { sizes: { '10mm x 10m': 245 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Formwork & reinforcement': {
+        'Formwork timber': {
+            'Shutter board': { sizes: { '18mm 1.2 x 2.4m': 485, '22mm 1.2 x 2.4m': 585 }, markup: MATERIAL_MARKUP },
+            'Pine shutter plank': { sizes: { '38 x 152 x 4.8m': 245 }, markup: MATERIAL_MARKUP },
+            'Brandering strip': { sizes: { '38 x 38 x 3m': 85 }, markup: MATERIAL_MARKUP },
+            'Ply board (shutterply)': { sizes: { '18mm 1.2 x 2.4m': 685 }, markup: MATERIAL_MARKUP }
+        },
+        'Formwork props & clamps': {
+            'Acrow prop': { sizes: { '2.0m': 385, '3.5m': 485 }, markup: MATERIAL_MARKUP },
+            'Formwork clamp': { sizes: { 'Standard': 95, 'Heavy duty': 145 }, markup: MATERIAL_MARKUP },
+            'Tie rod': { sizes: { 'M16 (10)': 385 }, markup: MATERIAL_MARKUP },
+            'Prop foot plate': { sizes: { 'Standard': 85 }, markup: MATERIAL_MARKUP },
+            'Scaffold tube': { sizes: { '48mm x 6m': 385 }, markup: MATERIAL_MARKUP }
+        },
+        'Reinforcement': {
+            'Steel reinforcing': { sizes: { '8mm x 6m': 95, '10mm x 6m': 145, '12mm x 6m': 205, '16mm x 6m': 325 }, markup: MATERIAL_MARKUP },
+            'Mesh reinforcement': { sizes: { 'A142 2.4 x 6m': 950, 'A193 2.4 x 6m': 1250 }, markup: MATERIAL_MARKUP },
+            'Binding wire': { sizes: { '1.6mm x 25m': 85 }, markup: MATERIAL_MARKUP },
+            'Starter bar / dowel': { sizes: { '12mm x 1m': 65, '16mm x 1m': 95 }, markup: MATERIAL_MARKUP },
+            'Bar chair / spacer': { sizes: { '50mm (50)': 145 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Structural steel': {
+        'Sections & beams': {
+            'I-beam / universal beam': { sizes: { '152 x 89mm x 6m': 2450, '203 x 133mm x 6m': 3850 }, markup: MATERIAL_MARKUP },
+            'Channel section': { sizes: { '100 x 50mm x 6m': 1250 }, markup: MATERIAL_MARKUP },
+            'Angle iron': { sizes: { '50 x 50mm x 6m': 685, '75 x 75mm x 6m': 985 }, markup: MATERIAL_MARKUP },
+            'Square tube': { sizes: { '50 x 50mm x 6m': 685, '75 x 75mm x 6m': 985 }, markup: MATERIAL_MARKUP },
+            'Flat bar': { sizes: { '40 x 6mm x 6m': 285 }, markup: MATERIAL_MARKUP }
+        },
+        'Plates & bolts': {
+            'Base plate': { sizes: { '200 x 200 x 10mm': 385 }, markup: MATERIAL_MARKUP },
+            'Anchor bolt': { sizes: { 'M16 J-bolt (10)': 485, 'M20 J-bolt (10)': 685 }, markup: MATERIAL_MARKUP },
+            'High-strength bolt set': { sizes: { 'M16 (10)': 385, 'M20 (10)': 545 }, markup: MATERIAL_MARKUP },
+            'Welding rod': { sizes: { '3.15mm 5kg': 385 }, markup: MATERIAL_MARKUP },
+            'Anti-corrosion paint': { sizes: { '5L': 485 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Roofing materials': {
+        'Sheet & tile': {
+            'Roofing sheet': { sizes: { '0.47mm x 3m': 425, '0.53mm x 3m': 520 }, markup: MATERIAL_MARKUP },
+            'Roof tile': { sizes: { 'Concrete (per m2)': 285 }, markup: MATERIAL_MARKUP },
+            'Ridge tile': { sizes: { 'Standard': 85 }, markup: MATERIAL_MARKUP },
+            'Barge board': { sizes: { '2.4m plastic': 285 }, markup: MATERIAL_MARKUP }
+        },
+        'Timber & fixings': {
+            'Roof timber': { sizes: { '38 x 50 x 3m': 145, '50 x 76 x 3m': 245 }, markup: MATERIAL_MARKUP },
+            'Roof truss': { sizes: { 'Standard gang-nail': 1450 }, markup: MATERIAL_MARKUP },
+            'Purlin': { sizes: { '38 x 50 x 6m': 285 }, markup: MATERIAL_MARKUP },
+            'Roofing screw': { sizes: { '65mm (250)': 195 }, markup: MATERIAL_MARKUP },
+            'Fascia board': { sizes: { '2.4m': 285 }, markup: MATERIAL_MARKUP },
+            'Roof insulation': { sizes: { '50mm (per m2)': 95, '100mm (per m2)': 145 }, markup: MATERIAL_MARKUP }
+        },
+        'Waterproofing': {
+            'Torch-on membrane': { sizes: { '4mm x 10m roll': 1250 }, markup: MATERIAL_MARKUP },
+            'Liquid waterproofing': { sizes: { '20kg': 985 }, markup: MATERIAL_MARKUP },
+            'Flash band / flashing': { sizes: { '100mm x 10m': 245 }, markup: MATERIAL_MARKUP },
+            'Roof paint': { sizes: { '20L': 1250 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Brickwork & blockwork': {
+        'Units': {
+            'Brick': { sizes: { 'Clay stock (1000)': 3200, 'Cement stock (1000)': 2800, 'Face brick (1000)': 4500 }, markup: MATERIAL_MARKUP },
+            'Concrete block': { sizes: { '140mm (100)': 1850, '190mm (100)': 2450 }, markup: MATERIAL_MARKUP },
+            'Maxi brick': { sizes: { '290 x 140 x 90mm (1000)': 3200 }, markup: MATERIAL_MARKUP }
+        },
+        'Mortar & accessories': {
+            'Masonry cement': { sizes: { '50kg': 135 }, markup: MATERIAL_MARKUP },
+            'Mortar plasticiser': { sizes: { '5L': 185 }, markup: MATERIAL_MARKUP },
+            'Brickforce / wall tie': { sizes: { 'Roll 30m': 185 }, markup: MATERIAL_MARKUP },
+            'Damp-proof course': { sizes: { '112mm x 30m': 385 }, markup: MATERIAL_MARKUP },
+            'Wall starter tie': { sizes: { 'Pack': 285 }, markup: MATERIAL_MARKUP },
+            'Concrete lintel': { sizes: { '110 x 75 x 1200mm': 285, '110 x 75 x 1800mm': 420 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Wet trades & tiling': {
+        'Tiling': {
+            'Tile adhesive': { sizes: { '20kg standard': 145, '20kg flexible': 245 }, markup: MATERIAL_MARKUP },
+            'Tile grout': { sizes: { '5kg': 95, '20kg': 285 }, markup: MATERIAL_MARKUP },
+            'Floor tile': { sizes: { '300 x 300mm (per m2)': 145 }, markup: MATERIAL_MARKUP },
+            'Wall tile': { sizes: { '250 x 400mm (per m2)': 165 }, markup: MATERIAL_MARKUP },
+            'Tile spacers': { sizes: { 'Pack of 250': 55 }, markup: MATERIAL_MARKUP },
+            'Silicone sanitary sealant': { sizes: { '280ml': 95 }, markup: MATERIAL_MARKUP }
+        },
+        'Screeds & waterproofing': {
+            'Floor screed': { sizes: { '40kg': 195 }, markup: MATERIAL_MARKUP },
+            'Self-levelling compound': { sizes: { '20kg': 385 }, markup: MATERIAL_MARKUP },
+            'Wet-area waterproofing': { sizes: { '20kg cementitious': 885 }, markup: MATERIAL_MARKUP },
+            'Priming slurry': { sizes: { '20kg': 585 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Hard landscaping': {
+        'Paving': {
+            'Paving brick': { sizes: { '60mm Interlock (1000)': 4500 }, markup: MATERIAL_MARKUP },
+            'Concrete paver': { sizes: { '50mm (per m2)': 145 }, markup: MATERIAL_MARKUP },
+            'Clay paver': { sizes: { '50mm (per m2)': 285 }, markup: MATERIAL_MARKUP },
+            'Kerb stone': { sizes: { '1m concrete': 145 }, markup: MATERIAL_MARKUP },
+            'Garden edging': { sizes: { '2.4m': 145 }, markup: MATERIAL_MARKUP }
+        },
+        'Bedding & finishes': {
+            'Bedding sand': { sizes: { '1 tonne': 480 }, markup: MATERIAL_MARKUP },
+            'Jointing sand': { sizes: { '25kg': 85 }, markup: MATERIAL_MARKUP },
+            'Topsoil': { sizes: { '1 m3': 385 }, markup: MATERIAL_MARKUP },
+            'Grass seed': { sizes: { '1kg': 145 }, markup: MATERIAL_MARKUP },
+            'Gabion basket': { sizes: { '1 x 1 x 1m': 685 }, markup: MATERIAL_MARKUP }
+        }
+    },
+    'Site & safety consumables': {
+        'Site consumables': {
+            'Wheelbarrow': { sizes: { Standard: 785 }, markup: MATERIAL_MARKUP },
+            'Spade & shovel': { sizes: { Standard: 185 }, markup: MATERIAL_MARKUP },
+            'Brick trowel': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP },
+            'Plumb line & level': { sizes: { Standard: 285 }, markup: MATERIAL_MARKUP },
+            'Spirit level': { sizes: { '600mm': 245, '1200mm': 385 }, markup: MATERIAL_MARKUP },
+            'Builders line & pins': { sizes: { 'Roll': 85 }, markup: MATERIAL_MARKUP },
+            'Wheelbarrow wheel': { sizes: { Standard: 245 }, markup: MATERIAL_MARKUP }
+        },
+        'Site protection & waste': {
+            'Rubble bags': { sizes: { 'Pack of 10': 95 }, markup: MATERIAL_MARKUP },
+            'Skip bin hire': { sizes: { '6m3': 1850, '9m3': 2450 }, markup: MATERIAL_MARKUP },
+            'Barrier mesh / fencing': { sizes: { '1.8m x 10m': 1250 }, markup: MATERIAL_MARKUP },
+            'Silt fence': { sizes: { 'Roll 50m': 1450 }, markup: MATERIAL_MARKUP },
+            'Warning signs & cones': { sizes: { 'Set': 385 }, markup: MATERIAL_MARKUP }
+        },
+        'PPE': {
+            'Safety helmet': { sizes: { Standard: 145 }, markup: MATERIAL_MARKUP },
+            'Safety boots': { sizes: { 'Size 6-12': 785 }, markup: MATERIAL_MARKUP },
+            'High-vis vest': { sizes: { Standard: 95 }, markup: MATERIAL_MARKUP },
+            'Safety harness': { sizes: { Standard: 1850 }, markup: MATERIAL_MARKUP },
+            'Work gloves': { sizes: { 'Leather pair': 125, 'Latex pair': 45 }, markup: MATERIAL_MARKUP },
+            'Dust mask': { sizes: { 'FFP2 (10)': 185 }, markup: MATERIAL_MARKUP }
+        }
     }
 };
 const catalogueCategories = Object.keys(materialCatalogue);
+/* =========================================================
+   MATERIAL CATALOGUE HELPERS
+   ---------------------------------------------------------
+   The catalogue is nested Category -> Sub-group -> Type.
+   These helpers flatten that back to (category, type) so the
+   rest of the app does not care how deep the tree is, and so
+   quotes saved before the sub-group existed still resolve.
+   ========================================================= */
+function materialSubGroups(category) {
+    return materialCatalogue[category] ? Object.keys(materialCatalogue[category]) : [];
+}
+function materialCategoryScaffold(category, type, subGroup) {
+    const groups = materialSubGroups(category);
+    const hasType = type && typeof materialCatalogue[category]?.[type]?.sizes === 'object';
+    if (hasType) return { subGroup: '', type };
+    const group = subGroup || groups.find(name => materialCatalogue[category]?.[name]?.[type]);
+    return { subGroup: group || groups[0] || '', type: type || '' };
+}
+function materialTypes(category, subGroup) {
+    const group = materialCatalogue[category]?.[subGroup];
+    return group && typeof group === 'object' ? Object.keys(group) : [];
+}
+function materialItem({ category, subGroup, type }) {
+    if (!category || !type) return null;
+    // Legacy flat shape: the type sat directly under the category.
+    const direct = materialCatalogue[category]?.[type];
+    if (direct?.sizes) return direct;
+    // Named sub-group first, then any sub-group that holds this type, so a
+    // quote saved before the sub-group level existed still resolves.
+    const named = materialCatalogue[category]?.[subGroup]?.[type];
+    if (named?.sizes) return named;
+    const groupName = materialSubGroups(category).find(name => materialCatalogue[category]?.[name]?.[type]?.sizes);
+    return groupName ? materialCatalogue[category][groupName][type] : null;
+}
+function materialDescription(type, size) {
+    return `${type} - ${size}`;
+}
 const serviceCatalogue = {
     'Excavation & ground work': ['Excavate soil', 'Remove soil and rubble', 'Backfill trench', 'Compact or stamp ground', 'Level ground', 'Lay bedding sand'],
     'Breaking & access': ['Break and remove concrete', 'Remove paving', 'Core drill through wall', 'Chase wall for cable or pipe', 'Cut opening in wall', 'Demolish and remove structure'],
@@ -245,9 +580,153 @@ const serviceRates = { 'Backfill trench': 400, 'Compact or stamp ground': 350, '
     'Trace and repair electrical fault': 750, 'Restore supply': 250, 'Connect and terminate': 350,
     'Electrical COC inspection': 850, 'Electrical installation test': 950, 'Workmanship guarantee inspection': 550,
     'Building compliance inspection': 850 };
+/* Reference day rates for the construction-site service categories above.
+   These are starting points for a quote, not a rate card: edit them on the
+   Price list screen and they are stored per device like any other rate. */
+Object.assign(serviceRates, {
+    // Site establishment
+    'Site establishment and hoarding': 2500, 'Erect temporary fencing or hoarding': 45, 'Site clearance and levelling': 1800,
+    'Set out and mark site boundary': 950, 'Establish site access and haul routes': 1500, 'Install site board and signage': 850,
+    'Set up site office or store': 2200, 'Temporary water and power connection': 1650, 'Install temporary sanitation': 1250,
+    'Establish material laydown area': 950, 'Protect existing services and trees': 750, 'Erect scaffolding and access platforms': 55,
+    'Dismantle and demobilise site': 1800,
+    // Demolition & strip-out
+    'Demolition survey and make safe': 1200, 'Demolish building or structure': 350, 'Soft strip-out of interiors': 120,
+    'Strip roof covering': 95, 'Remove structural steel': 850, 'Break out floor slabs and bases': 450,
+    'Remove foundations and footings': 550, 'Cut and remove reinforced concrete': 750, 'Sort demolition waste for recycling': 450,
+    'Load and cart away demolition rubble': 650, 'Backfill and level demolished area': 550, 'Provide demolition method statement': 950,
+    // Structural & concrete
+    'Structural setting out': 1250, 'Excavate and prepare footing': 650, 'Place blinding layer': 350,
+    'Fix footing reinforcement': 550, 'Pour footing concrete': 950, 'Erect column and wall formwork': 85,
+    'Fix column reinforcement': 650, 'Pour column concrete': 950, 'Cast suspended slab': 250,
+    'Place slab reinforcement and mesh': 55, 'Strip formwork and prop': 450, 'Cure concrete elements': 250,
+    'Cast concrete retaining structure': 1250, 'Fix anchor bolts and holding-down bolts': 450, 'Grout machine or column base': 650,
+    'Apply concrete surface finish': 450,
+    // Formwork & reinforcement
+    'Design or check formwork': 1500, 'Erect formwork and props': 75, 'Strike and remove formwork': 45,
+    'Cut, bend and fix rebar': 18, 'Fix mesh reinforcement': 35, 'Fix starters and dowels': 350,
+    'Position spacers and chairs': 250, 'Fix lap and cover to specification': 350, 'Erect reinforcing cages': 750,
+    'Fabricate and fix steel connectors': 850,
+    // Roofing & waterproofing
+    'Erect roof trusses or rafters': 65, 'Install purlins and battens': 45, 'Fit roof sheeting or tiles': 85,
+    'Fit ridge and barge cappings': 65, 'Install fascia and gutters': 65, 'Fit roof insulation': 45,
+    'Seal roof penetrations and flashings': 450, 'Install roof lights or vents': 650, 'Apply roof waterproofing system': 75,
+    'Install valley and rainwater outlets': 550, 'Torch-on membrane installation': 120, 'Liquid waterproofing application': 65,
+    'Roof inspection and repair': 750,
+    // Plant & equipment hire (per day unless a task says otherwise)
+    'Concrete mixer hire': 450, 'Concrete pump hire': 4500, 'Truck-mounted crane hire': 6500,
+    'Mobile crane hire': 8500, 'Telehandler or forklift hire': 2800, 'Excavator hire': 3200,
+    'TLB hire': 3800, 'Bobcat or skid-steer hire': 2200, 'Tipper truck hire': 2500,
+    'Water bowser hire': 1800, 'Generator hire': 1200, 'Compressor and breaker hire': 1450,
+    'Scaffolding hire': 850, 'Formwork and prop hire': 950, 'Vibrator and poker hire': 550,
+    'Plate compactor hire': 650,
+    // Site services & preliminaries
+    'Site supervision and management': 3500, 'Site foreman day work': 1450, 'Setting out by engineer': 4500,
+    'Quantity surveyor measurement': 3800, 'Health and safety officer attendance': 2800, 'Traffic accommodation and signage': 1650,
+    'Temporary works design': 5500, 'De-watering and pumping': 950, 'Dust and noise control': 750,
+    'Waste skips and disposal': 1850, 'Daily site cleaning and housekeeping': 650, 'As-built drawings and handover file': 2500,
+    'Preliminaries and standing time': 1200,
+    // Wet trades & tiling
+    'Screed floors': 85, 'Lay floor tiling': 120, 'Lay wall tiling': 120,
+    'Fix tiles to wet areas': 145, 'Waterproof wet area before tiling': 95, 'Fit skirting and trims': 55,
+    'Grout and seal tiling': 45, 'Level and flatten substrate': 65, 'Build tiled shower or recess': 3500,
+    'Install sanitaryware and fittings': 750, 'Fit kitchens and vanities': 1850,
+    // Hard landscaping
+    'Excavate and prepare kerb line': 65, 'Install kerbs and edgings': 85, 'Lay interlocking paving': 95,
+    'Lay clay or concrete pavers': 110, 'Install drainage channels': 185, 'Build block paving driveway': 120,
+    'Construct retaining planter': 1450, 'Lay topsoil and grass': 55, 'Install irrigation sleeves': 65,
+    'Build gabion or stone wall': 1250
+});
 const storedServiceRates = JSON.parse(localStorage.getItem(storageKey('service-rates')) || '{}');
 Object.assign(serviceRates, storedServiceRates);
 const serviceUnits = JSON.parse(localStorage.getItem(storageKey('service-units')) || '{}');
+/* =========================================================
+   DEFAULT SERVICE UNITS
+   ---------------------------------------------------------
+   Most construction work is measured, not counted: m² for
+   plaster, tiling, roofing, paving and screeds; m³ for
+   concrete, excavation and backfill; m (linear) for kerbs,
+   skirtings, pipes and flashings; tonne for aggregates and
+   steel. Anything not listed here falls back to 'Each'.
+
+   These are DEFAULTS only. A unit edited on the Price list
+   screen is saved to localStorage and overrides the entry
+   below, and any service line's unit can be changed on the
+   quote itself.
+   ========================================================= */
+const defaultServiceUnits = {
+    // Structural concrete & reinforcement
+    'Excavate and prepare footing': 'm³', 'Place blinding layer': 'm²', 'Fix footing reinforcement': 'kg',
+    'Structural setting out': 'Job',
+    'Pour footing concrete': 'm³', 'Erect column and wall formwork': 'm²', 'Fix column reinforcement': 'kg',
+    'Pour column concrete': 'm³', 'Cast suspended slab': 'm²', 'Place slab reinforcement and mesh': 'kg',
+    'Strip formwork and prop': 'm²', 'Cure concrete elements': 'm²', 'Cast concrete retaining structure': 'm³',
+    'Apply concrete surface finish': 'm²',
+    // Formwork & reinforcement
+    'Design or check formwork': 'Job', 'Erect formwork and props': 'm²', 'Strike and remove formwork': 'm²',
+    'Cut, bend and fix rebar': 'kg', 'Fix mesh reinforcement': 'm²', 'Fix starters and dowels': 'Each',
+    'Position spacers and chairs': 'm²', 'Fix lap and cover to specification': 'm²', 'Erect reinforcing cages': 'Tonne',
+    'Fabricate and fix steel connectors': 'Each',
+    // Demolition
+    'Demolish building or structure': 'm²', 'Soft strip-out of interiors': 'm²', 'Strip roof covering': 'm²',
+    'Remove structural steel': 'Tonne', 'Break out floor slabs and bases': 'm³', 'Remove foundations and footings': 'm³',
+    'Cut and remove reinforced concrete': 'm³', 'Sort demolition waste for recycling': 'Load',
+    'Load and cart away demolition rubble': 'Load', 'Backfill and level demolished area': 'm³',
+    'Provide demolition method statement': 'Job',
+    // Site establishment
+    'Site establishment and hoarding': 'Job', 'Erect temporary fencing or hoarding': 'm', 'Site clearance and levelling': 'm²',
+    'Set out and mark site boundary': 'm', 'Establish site access and haul routes': 'm²', 'Install site board and signage': 'Each',
+    'Set up site office or store': 'Job', 'Temporary water and power connection': 'Job', 'Install temporary sanitation': 'Each',
+    'Establish material laydown area': 'm²', 'Protect existing services and trees': 'm', 'Erect scaffolding and access platforms': 'm²',
+    'Dismantle and demobilise site': 'Job',
+    // Roofing & waterproofing
+    'Erect roof trusses or rafters': 'm²', 'Install purlins and battens': 'm²', 'Fit roof sheeting or tiles': 'm²',
+    'Fit ridge and barge cappings': 'm', 'Install fascia and gutters': 'm', 'Fit roof insulation': 'm²',
+    'Seal roof penetrations and flashings': 'm', 'Install roof lights or vents': 'Each', 'Apply roof waterproofing system': 'm²',
+    'Install valley and rainwater outlets': 'Each', 'Torch-on membrane installation': 'm²', 'Liquid waterproofing application': 'm²',
+    'Roof inspection and repair': 'Job',
+    // Brickwork & blockwork
+    'Lay brickwork': 'm²', 'Build new wall': 'm²', 'Build half-brick wall': 'm²', 'Build retaining wall': 'm²',
+    'Build garden or boundary wall': 'm²', 'Erect brickwork to line': 'm²', 'Build pillars and columns': 'm',
+    'Point and finish brickwork': 'm²', 'Close up doorway or opening': 'm²', 'Fit damp-proof course': 'm',
+    'Cast concrete apron': 'm²', 'Build plastered wall': 'm²', 'Build brick pillar': 'm',
+    // Plastering & screeds
+    'Plaster interior wall': 'm²', 'Plaster exterior wall': 'm²', 'Plaster new brickwork': 'm²',
+    'Skim coat existing wall': 'm²', 'Skim coat ceiling': 'm²', 'Plaster ceiling': 'm²',
+    'Patch and repair plaster': 'm²', 'Crack repair and plastering': 'm²', 'Re-plaster damaged wall section': 'm²',
+    'Plaster around window or door': 'm', 'Plaster around electrical box': 'Each', 'Screed wall for tiling': 'm²',
+    'Lay floor screed': 'm²', 'Screed floors': 'm²', 'Prepare wall for painting': 'm²',
+    // Coatings & painting
+    'Prepare and clean surface': 'm²', 'High-pressure cleaning': 'm²', 'Sand and abrade surface': 'm²',
+    'Apply primer or sealer coat': 'm²', 'Apply first coat': 'm²', 'Apply second or final coat': 'm²',
+    'Apply waterproofing coating': 'm²', 'Apply epoxy floor coating': 'm²', 'Apply roof waterproofing coating': 'm²',
+    'Apply damp-proof coating': 'm²', 'Apply texture or decorative coating': 'm²', 'Apply protective clear coat': 'm²',
+    'Apply anti-corrosion coating': 'm²', 'Apply fire-retardant coating': 'm²', 'Apply coating to wall': 'm²',
+    'Apply coating to ceiling': 'm²', 'Apply coating to floor': 'm²', 'Apply coating to exterior': 'm²',
+    'Apply coating to metal surface': 'm²', 'Apply coating to concrete': 'm²', 'Apply coating to plaster': 'm²',
+    'Apply coating to wood': 'm²', 'Spray application of coating': 'm²', 'Roller application of coating': 'm²',
+    'Brush application of detail work': 'm', 'Apply line marking or road marking': 'm', 'Treat mould or algae': 'm²',
+    'Prepare and prime new plaster': 'm²', 'Paint ceiling': 'm²', 'Paint interior walls': 'm²',
+    'Paint exterior walls': 'm²', 'Paint trim and doors': 'm', 'Paint metalwork': 'm²',
+    'Apply roof coating': 'm²', 'Apply waterproofing': 'm²', 'Apply line marking': 'm', 'Spray paint finish': 'm²',
+    // Wet trades & tiling
+    'Lay floor tiling': 'm²', 'Lay wall tiling': 'm²', 'Fix tiles to wet areas': 'm²',
+    'Waterproof wet area before tiling': 'm²', 'Grout and seal tiling': 'm²', 'Level and flatten substrate': 'm²',
+    'Fit skirting and trims': 'm', 'Build tiled shower or recess': 'Each', 'Install sanitaryware and fittings': 'Each',
+    // Hard landscaping
+    'Excavate and prepare kerb line': 'm', 'Install kerbs and edgings': 'm', 'Lay interlocking paving': 'm²',
+    'Lay clay or concrete pavers': 'm²', 'Install drainage channels': 'm', 'Build block paving driveway': 'm²',
+    'Construct retaining planter': 'm', 'Lay topsoil and grass': 'm²', 'Install irrigation sleeves': 'm',
+    'Build gabion or stone wall': 'm²', 'Replace paving': 'm²', 'Relay paving': 'm²', 'Reinstall paving': 'm²',
+    'Level paving': 'm²', 'Lay tiles or paving': 'm²',
+    // Excavation & civil
+    'Excavate soil': 'm³', 'Excavate trench': 'm³', 'Remove soil and rubble': 'm³', 'Backfill trench': 'm³',
+    'Compact or stamp ground': 'm²', 'Level ground': 'm²', 'Lay bedding sand': 'm²', 'Land bedding sand': 'm²',
+    'Break and remove concrete': 'm³', 'Break concrete or floor': 'm³', 'Core drill through wall': 'Each',
+    'Chase wall for cable or pipe': 'm', 'Cut opening in wall': 'm²', 'Remove tiles': 'm²', 'Remove paving': 'm²',
+    'Repair concrete': 'm²', 'Repair tiles': 'm²', 'Install kerbs': 'm'
+};
+function defaultServiceUnit(task) { return defaultServiceUnits[task] || 'Each'; }
 const scenarios = {
     'handyman-odd-jobs': { services: [{ category: 'General handyman', task: 'General maintenance inspection', quantity: 1, rate: 550 }, { category: 'General handyman', task: 'Small repairs and odd jobs', quantity: 1, rate: 450 }, { category: 'Additional labour', task: 'Clean work area', quantity: 1, rate: 250 }], materials: [{ category: 'Fasteners & fixings', type: 'Wall plug & screw set', size: 'Assorted (100)', quantity: 1, description: 'Wall plug & screw set - Assorted (100)', cost: 145, markup: MATERIAL_MARKUP }] },
     'handyman-shelves': { services: [{ category: 'General handyman', task: 'General maintenance inspection', quantity: 1, rate: 550 }, { category: 'General handyman', task: 'Fit shelving and brackets', quantity: 1, rate: 450 }, { category: 'Additional labour', task: 'Clean work area', quantity: 1, rate: 250 }], materials: [{ category: 'Shelving & hardware', type: 'Shelf bracket', size: '200mm (2)', quantity: 2, description: 'Shelf bracket - 200mm (2)', cost: 85, markup: MATERIAL_MARKUP }, { category: 'Shelving & hardware', type: 'Shelving board', size: '1.2m x 300mm', quantity: 1, description: 'Shelving board - 1.2m x 300mm', cost: 245, markup: MATERIAL_MARKUP }] },
@@ -339,9 +818,40 @@ const masterScenarioLibrary = [
     ['Excavation & Civil Works', 'Paving removal and reinstatement', 'Mark work area|Remove paving|Number and store pavers|Excavation|Backfill|Compact|Sand bedding|Replace paving|Cut replacement pavers|Joint sand|Clean area'],
     ['Excavation & Civil Works', 'Concrete breaking and reinstatement', 'Mark work area|Concrete cutting|Concrete breaking|Remove concrete|Excavation|Backfill|Compaction|Reinforcement|Concrete supply|Concrete reinstatement|Finishing|Curing'],
     ['Excavation & Civil Works', 'Tiling removal and reinstatement', 'Protect work area|Remove tiles|Remove adhesive|Repair substrate|Waterproofing repair|Tile adhesive|Replacement tiles|Grouting|Silicone|Cleaning'],
-    ['Excavation & Civil Works', 'Excavation and earthworks', 'Site setup|Mark excavation|Hand excavation|Machine excavation|Trenching|Soil removal|Spoil handling|Sand bedding|Backfill|Compaction|Excess soil removal']
+    ['Excavation & Civil Works', 'Excavation and earthworks', 'Site setup|Mark excavation|Hand excavation|Machine excavation|Trenching|Soil removal|Spoil handling|Sand bedding|Backfill|Compaction|Excess soil removal'],
+    /* =====================================================================
+       CONSTRUCTION SITE SCENARIOS
+       ------------------------------------------------------------
+       Site-based jobs a general building contractor quotes: setting up
+       the site, demolition, footings, columns and slabs, formwork and
+       rebar, roofing, plant day-rates, wet trades and hard landscaping.
+       ===================================================================== */
+    ['Site Establishment', 'Set up a construction site', 'Site establishment and hoarding|Erect temporary fencing or hoarding|Set up site office or store|Temporary water and power connection|Install temporary sanitation|Establish material laydown area|Install site board and signage|Establish site access and haul routes|Protect existing services and trees|Site clearance and levelling'],
+    ['Site Establishment', 'Establish site access and haul routes', 'Site establishment and hoarding|Establish site access and haul routes|Site clearance and levelling|Set out and mark site boundary|Traffic accommodation and signage|Protect existing services and trees'],
+    ['Site Establishment', 'Demobilise and hand over site', 'Dismantle and demobilise site|Daily site cleaning and housekeeping|Waste skips and disposal|As-built drawings and handover file|Workmanship guarantee inspection'],
+    ['Demolition & Strip-Out', 'Demolish a building or structure', 'Demolition survey and make safe|Provide demolition method statement|Soft strip-out of interiors|Strip roof covering|Remove structural steel|Demolish building or structure|Break out floor slabs and bases|Remove foundations and footings|Sort demolition waste for recycling|Load and cart away demolition rubble|Backfill and level demolished area'],
+    ['Demolition & Strip-Out', 'Interior soft strip-out', 'Demolition survey and make safe|Soft strip-out of interiors|Remove existing door|Remove tiles|Protect work area|Load and cart away demolition rubble|Daily site cleaning and housekeeping'],
+    ['Demolition & Strip-Out', 'Break out concrete and bases', 'Demolition survey and make safe|Cut and remove reinforced concrete|Break out floor slabs and bases|Remove foundations and footings|Load and cart away demolition rubble|Backfill and level demolished area'],
+    ['Structural Concrete', 'Cast strip footings', 'Structural setting out|Excavate and prepare footing|Place blinding layer|Fix footing reinforcement|Pour footing concrete|Cure concrete elements|Backfill and level demolished area'],
+    ['Structural Concrete', 'Cast columns and walls', 'Structural setting out|Erect column and wall formwork|Fix column reinforcement|Position spacers and chairs|Pour column concrete|Strip formwork and prop|Cure concrete elements'],
+    ['Structural Concrete', 'Cast a suspended slab', 'Structural setting out|Erect column and wall formwork|Place slab reinforcement and mesh|Position spacers and chairs|Pour footing concrete|Vibrator and poker hire|Strip formwork and prop|Cure concrete elements|Apply concrete surface finish'],
+    ['Structural Concrete', 'Cast a retaining structure', 'Structural setting out|Excavate and prepare footing|Fix footing reinforcement|Erect column and wall formwork|Fix column reinforcement|Cast concrete retaining structure|Strip formwork and prop|Cure concrete elements|Install drainage channels'],
+    ['Formwork & Reinforcement', 'Erect and strike formwork', 'Design or check formwork|Erect formwork and props|Formwork and prop hire|Position spacers and chairs|Strip formwork and prop|Daily site cleaning and housekeeping'],
+    ['Formwork & Reinforcement', 'Fix reinforcement and mesh', 'Cut, bend and fix rebar|Fix mesh reinforcement|Fix starters and dowels|Position spacers and chairs|Fix lap and cover to specification|Erect reinforcing cages'],
+    ['Roofing', 'New roof construction', 'Erect roof trusses or rafters|Install purlins and battens|Fit roof insulation|Fit roof sheeting or tiles|Fit ridge and barge cappings|Install fascia and gutters|Seal roof penetrations and flashings|Check gutter and downpipe'],
+    ['Roofing', 'Flat roof waterproofing', 'Prepare and clean surface|Liquid waterproofing application|Torch-on membrane installation|Apply roof waterproofing system|Install valley and rainwater outlets|Seal roof penetrations and flashings|Cure and protect new coating'],
+    ['Roofing', 'Roof repair after storm damage', 'Roof inspection and repair|Remove damaged roof timber|Fit roof sheeting or tiles|Fit ridge and barge cappings|Seal roof penetrations and flashings|Clear and clean gutters'],
+    ['Plant & Plant Hire', 'Excavator and earthmoving day rates', 'TLB hire|Excavator hire|Bobcat or skid-steer hire|Tipper truck hire|Water bowser hire'],
+    ['Plant & Plant Hire', 'Concrete placing plant', 'Concrete mixer hire|Concrete pump hire|Vibrator and poker hire|Telehandler or forklift hire'],
+    ['Plant & Plant Hire', 'Lifting and access plant', 'Mobile crane hire|Truck-mounted crane hire|Telehandler or forklift hire|Scaffolding hire'],
+    ['Site Preliminaries', 'Site supervision and preliminaries', 'Site supervision and management|Site foreman day work|Health and safety officer attendance|Temporary works design|Preliminaries and standing time|Daily site cleaning and housekeeping'],
+    ['Site Preliminaries', 'Setting out and measurement', 'Setting out by engineer|Structural setting out|Set out and mark site boundary|Quantity surveyor measurement|As-built drawings and handover file'],
+    ['Wet Trades & Tiling', 'Tile a wet area', 'Waterproof wet area before tiling|Level and flatten substrate|Lay wall tiling|Lay floor tiling|Fix tiles to wet areas|Grout and seal tiling|Install sanitaryware and fittings'],
+    ['Wet Trades & Tiling', 'Floor screed and tiling', 'Screed floors|Level and flatten substrate|Lay floor tiling|Grout and seal tiling|Fit skirting and trims'],
+    ['Hard Landscaping', 'Paving and driveway construction', 'Excavate and prepare kerb line|Install kerbs and edgings|Lay interlocking paving|Build block paving driveway|Install drainage channels|Lay topsoil and grass'],
+    ['Hard Landscaping', 'Retaining and garden walls', 'Excavate and prepare kerb line|Build gabion or stone wall|Construct retaining planter|Build block paving driveway|Lay topsoil and grass|Install irrigation sleeves']
 ];
-const libraryCategoryMap = { 'Handyman Repairs': 'General handyman', 'Electrical Work': 'Electrical work', 'Building Work': 'Building work', 'Plastering & Skimming': 'Plastering & skimming', 'Coatings & Painting': 'Coatings & painting', 'Compliance & Testing': 'Compliance & testing', 'Excavation & Civil Works': 'Excavation & ground work' };
+const libraryCategoryMap = { 'Handyman Repairs': 'General handyman', 'Electrical Work': 'Electrical work', 'Building Work': 'Building work', 'Plastering & Skimming': 'Plastering & skimming', 'Coatings & Painting': 'Coatings & painting', 'Compliance & Testing': 'Compliance & testing', 'Excavation & Civil Works': 'Excavation & ground work', 'Site Establishment': 'Site establishment', 'Demolition & Strip-Out': 'Demolition & strip-out', 'Structural Concrete': 'Structural & concrete', 'Formwork & Reinforcement': 'Formwork & reinforcement', 'Roofing': 'Roofing & waterproofing', 'Plant & Plant Hire': 'Plant & equipment hire', 'Site Preliminaries': 'Site services & preliminaries', 'Wet Trades & Tiling': 'Wet trades & tiling', 'Hard Landscaping': 'Hard landscaping' };
 masterScenarioLibrary.forEach(([libraryCategory, name, tasks], index) => { scenarios[`library-${index + 1}`] = { services: tasks.split('|').map(task => ({ category: libraryCategoryMap[libraryCategory], task, quantity: 1, rate: serviceRates[task] || 350 })), materials: [] }; });
 const storedScenarioServices = JSON.parse(localStorage.getItem(storageKey('scenario-services')) || '{}');
 Object.entries(storedScenarioServices).forEach(([id, services]) => { if (scenarios[id] && Array.isArray(services)) scenarios[id].services = services; });
@@ -354,7 +864,24 @@ const standardServices = {
     'Building work': ['Build plastered wall', 'Build paving and edge', 'Cast concrete apron', 'Install concrete lintel', 'Install roof truss', 'Fit roof sheeting', 'Fit ceiling board', 'Install window frame', 'Hang external door', 'Fit garage door', 'Build brick pillar', 'Point and finish brickwork', 'Install damp-proof course', 'Repair cracked wall', 'Brick up opening', 'Lay floor screed', 'Build garden step', 'Set out building lines'],
     'Plastering & skimming': ['Skim coat plasterboard', 'Skim coat existing walls', 'Plaster patch repair', 'Plaster crack repair', 'Plaster around door and window', 'Plaster around electrical box', 'Fit corner bead', 'Apply plaster bonding agent', 'Float and level plaster', 'Polish plaster finish', 'Plaster damp-damaged wall', 'Screed wall for tiling', 'Bag and paint wall finish', 'Repair cornice and moulding', 'Plaster ceiling', 'Plaster bagged exterior'],
     'Coatings & painting': ['Prepare and prime new plaster', 'Paint ceiling', 'Paint interior walls', 'Paint exterior walls', 'Paint trim and doors', 'Paint metalwork', 'Apply roof coating', 'Apply waterproofing', 'Apply epoxy floor coating', 'Apply damp-proof coating', 'Apply anti-corrosion coating', 'Apply line marking', 'Apply texture coating', 'Seal and varnish timber', 'Spray paint finish', 'Touch up painted surface', 'Minor paint repairs'],
-    'Compliance & testing': ['Electrical COC inspection', 'Issue electrical COC', 'Electrical installation test', 'Earth leakage test', 'Site assessment and quotation', 'Workmanship guarantee inspection', 'Building compliance inspection']
+    'Compliance & testing': ['Electrical COC inspection', 'Issue electrical COC', 'Electrical installation test', 'Earth leakage test', 'Site assessment and quotation', 'Workmanship guarantee inspection', 'Building compliance inspection'],
+    /* =====================================================
+       CONSTRUCTION SITE WORKS
+       -----------------------------------------------------
+       Activities a general building contractor runs on site:
+       site establishment, demolition, structural concrete,
+       formwork and reinforcement, roofing, plant hire, wet
+       trades and hard landscaping. Added alongside the existing
+       trades so the same quote page covers a building site.
+       ===================================================== */
+    'Site establishment': ['Site establishment and hoarding', 'Erect temporary fencing or hoarding', 'Site clearance and levelling', 'Set out and mark site boundary', 'Establish site access and haul routes', 'Install site board and signage', 'Set up site office or store', 'Temporary water and power connection', 'Install temporary sanitation', 'Establish material laydown area', 'Protect existing services and trees', 'Erect scaffolding and access platforms', 'Dismantle and demobilise site'],
+    'Demolition & strip-out': ['Demolition survey and make safe', 'Demolish building or structure', 'Soft strip-out of interiors', 'Strip roof covering', 'Remove structural steel', 'Break out floor slabs and bases', 'Remove foundations and footings', 'Cut and remove reinforced concrete', 'Sort demolition waste for recycling', 'Load and cart away demolition rubble', 'Backfill and level demolished area', 'Provide demolition method statement'],
+    'Structural & concrete': ['Structural setting out', 'Excavate and prepare footing', 'Place blinding layer', 'Fix footing reinforcement', 'Pour footing concrete', 'Erect column and wall formwork', 'Fix column reinforcement', 'Pour column concrete', 'Cast suspended slab', 'Place slab reinforcement and mesh', 'Strip formwork and prop', 'Cure concrete elements', 'Cast concrete retaining structure', 'Fix anchor bolts and holding-down bolts', 'Grout machine or column base', 'Apply concrete surface finish'], 'Formwork & reinforcement': ['Design or check formwork', 'Erect formwork and props', 'Strike and remove formwork', 'Cut, bend and fix rebar', 'Fix mesh reinforcement', 'Fix starters and dowels', 'Position spacers and chairs', 'Fix lap and cover to specification', 'Erect reinforcing cages', 'Fabricate and fix steel connectors'],
+    'Roofing & waterproofing': ['Erect roof trusses or rafters', 'Install purlins and battens', 'Fit roof sheeting or tiles', 'Fit ridge and barge cappings', 'Install fascia and gutters', 'Fit roof insulation', 'Seal roof penetrations and flashings', 'Install roof lights or vents', 'Apply roof waterproofing system', 'Install valley and rainwater outlets', 'Torch-on membrane installation', 'Liquid waterproofing application', 'Roof inspection and repair'],
+    'Plant & equipment hire': ['Concrete mixer hire', 'Concrete pump hire', 'Truck-mounted crane hire', 'Mobile crane hire', 'Telehandler or forklift hire', 'Excavator hire', 'TLB hire', 'Bobcat or skid-steer hire', 'Tipper truck hire', 'Water bowser hire', 'Generator hire', 'Compressor and breaker hire', 'Scaffolding hire', 'Formwork and prop hire', 'Vibrator and poker hire', 'Plate compactor hire'],
+    'Site services & preliminaries': ['Site supervision and management', 'Site foreman day work', 'Setting out by engineer', 'Quantity surveyor measurement', 'Health and safety officer attendance', 'Traffic accommodation and signage', 'Temporary works design', 'De-watering and pumping', 'Dust and noise control', 'Waste skips and disposal', 'Daily site cleaning and housekeeping', 'As-built drawings and handover file', 'Preliminaries and standing time'],
+    'Wet trades & tiling': ['Screed floors', 'Lay floor tiling', 'Lay wall tiling', 'Fix tiles to wet areas', 'Waterproof wet area before tiling', 'Fit skirting and trims', 'Grout and seal tiling', 'Level and flatten substrate', 'Build tiled shower or recess', 'Install sanitaryware and fittings', 'Fit kitchens and vanities'],
+    'Hard landscaping': ['Excavate and prepare kerb line', 'Install kerbs and edgings', 'Lay interlocking paving', 'Lay clay or concrete pavers', 'Install drainage channels', 'Build block paving driveway', 'Construct retaining planter', 'Lay topsoil and grass', 'Install irrigation sleeves', 'Build gabion or stone wall']
 };
 Object.entries(standardServices).forEach(([category, tasks]) => { if (!serviceCatalogue[category]) serviceCatalogue[category] = []; tasks.forEach(task => { if (!serviceCatalogue[category].includes(task)) serviceCatalogue[category].push(task); }); });
 const storedServiceCatalogue = JSON.parse(localStorage.getItem(storageKey('service-catalogue')) || '{}');
@@ -523,7 +1050,7 @@ const supplierAvailability = {
 const priceCheckKey = storageKey('last-price-check');
 function getBestMaterialPrice(material) {
     if (!material.description) return { cost: getValue(material.cost), suppliers: [] };
-    const baseCost = materialCatalogue[material.category]?.[material.type]?.sizes[material.size] ?? getValue(material.cost);
+    const baseCost = materialItem(material)?.sizes[material.size] ?? getValue(material.cost);
     const prices = [{ supplier: 'reference', cost: baseCost }, ...Object.entries(supplierPrices).filter(([, catalogue]) => catalogue[material.description] !== undefined).map(([supplier, catalogue]) => ({ supplier, cost: catalogue[material.description] }))].filter(({ cost }) => Number.isFinite(cost) && cost > 0);
     if (!prices.length) return { cost: 0, suppliers: [] };
     const cost = Math.min(...prices.map(price => price.cost));
@@ -543,7 +1070,7 @@ function getMaterialArea(material) {
     return (w * h) / 1e6; // mm² → m²
 }
 function isAreaPriced(material) {
-    const item = materialCatalogue[material.category]?.[material.type];
+    const item = materialItem(material);
     return Boolean(item && item.unit === 'm2');
 }
 function getEffectiveCost(material) {
@@ -556,9 +1083,13 @@ function getMaterialQtyLabel(material) {
     const area = getMaterialArea(material);
     return area ? area.toFixed(2) : String(getQuantity(material));
 }
-function getServiceQuantity(service) { return Math.max(1, Number(service.quantity) || 1); }
+function getServiceQuantity(service) { const value = Number(service.quantity); return value > 0 ? value : 1; }
+/* Measured units are quoted by area, volume or linear length, so their
+   quantities must allow decimals (e.g. 12.5 m², 4.2 m³, 8.6 m). */
+const measuredUnits = ['m', 'm²', 'm³', 'Metre', 'Tonne', 'Ton', 'kg'];
+function isMeasuredUnit(unit) { return measuredUnits.includes(String(unit || '').trim()); }
 function getServiceRate(service) { const priceListRate = serviceRates[service.task]; return priceListRate === undefined ? Number(service.rate) || 350 : priceListRate; }
-function getServiceUnit(service) { return service.unit || serviceUnits[service.task] || 'Each'; }
+function getServiceUnit(service) { return service.unit || serviceUnits[service.task] || defaultServiceUnit(service.task); }
 function importPriceList(event) {
     const file = event.target.files[0];
     if (!file || typeof XLSX === 'undefined') { showToast('Excel parser could not be loaded'); return; }
@@ -593,11 +1124,11 @@ function importPriceList(event) {
 function getServiceTasks(service) { const tasks = serviceCatalogue[service.category] || []; return service.task && !tasks.includes(service.task) ? [...tasks, service.task] : tasks; }
 function categoryOptions(selected) { return `<option value="">Select category</option>${serviceCategories.map(category => `<option value="${escapeHtml(category)}" ${selected === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}`; }
 function persistServiceCatalogue() { localStorage.setItem(storageKey('service-catalogue'), JSON.stringify(serviceCatalogue)); }
-const unitOptions = ['Each', 'Hour', 'Day', 'Metre', 'm²', 'm³', 'Job', 'Connection', 'Load', 'Hole'];
+const unitOptions = ['Each', 'Hour', 'Day', 'm', 'm²', 'm³', 'Metre', 'Tonne', 'kg', 'Job', 'Connection', 'Load', 'Hole'];
 function unitSelect(selected, label) { const options = unitOptions.includes(selected) ? unitOptions : [selected, ...unitOptions]; return `<select class="price-unit" aria-label="${label}">${options.map(unit => `<option value="${escapeHtml(unit)}" ${unit === selected ? 'selected' : ''}>${escapeHtml(unit)}</option>`).join('')}</select>`; }
 function renderPriceList() {
     const query = ($('price-list-search')?.value || '').toLowerCase();
-    const rows = Object.entries(serviceCatalogue).flatMap(([category, tasks]) => tasks.map(task => ({ category, task, unit: serviceUnits[task] || 'Each', rate: getServiceRate({ task }) }))).filter(row => `${row.category} ${row.unit} ${row.task}`.toLowerCase().includes(query));
+    const rows = Object.entries(serviceCatalogue).flatMap(([category, tasks]) => tasks.map(task => ({ category, task, unit: serviceUnits[task] || defaultServiceUnit(task), rate: getServiceRate({ task }) }))).filter(row => `${row.category} ${row.unit} ${row.task}`.toLowerCase().includes(query));
     $('price-list-body').innerHTML = rows.map(row => `<tr class="price-entry" data-task="${escapeHtml(row.task)}"><td><select class="price-category" aria-label="Category for ${escapeHtml(row.task)}">${categoryOptions(row.category)}</select></td><td>${unitSelect(row.unit, `Type or unit for ${escapeHtml(row.task)}`)}</td><td><input class="price-line-item" value="${escapeHtml(row.task)}" aria-label="Line item ${escapeHtml(row.task)}"></td><td><input class="price-rate" data-task="${escapeHtml(row.task)}" type="number" min="0" step="0.01" value="${row.rate}" aria-label="Rate for ${escapeHtml(row.task)}"></td><td><button class="delete-price" type="button" aria-label="Delete ${escapeHtml(row.task)}">×</button></td></tr>`).join('');
     document.querySelectorAll('.delete-price').forEach(button => button.addEventListener('click', () => deletePrice(button.closest('.price-entry'))));
     $('price-list-count').textContent = `${rows.length} prices`;
@@ -642,7 +1173,7 @@ function runPriceCheck() {
 }
 
 function getNumber(id) { return Math.max(0, Number($(id).value) || 0); }
-function nextQuoteNumber() { return `APC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`; }
+function nextQuoteNumber() { return `SS-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`; }
 function calculate() {
     const { callout, labour, total: labourTotal } = getLabourTotals();
     const materialsTotal = materials.reduce((sum, material) => sum + getEffectiveCost(material) * (1 + MATERIAL_MARKUP / 100), 0);
@@ -651,7 +1182,6 @@ function calculate() {
     const vatRate = Number($('vat-rate').value || VAT_DEFAULT);
     const vat = $('vat-enabled').checked ? subtotal * vatRate / 100 : 0;
     $('labour-total').textContent = currency(labourTotal);
-    $('summary-callout').textContent = currency(callout);
     $('summary-labour').textContent = currency(labour);
     $('summary-materials').textContent = currency(materialsTotal);
     $('summary-services').textContent = currency(servicesTotal);
@@ -670,7 +1200,7 @@ function updatePrintDetails(totals = calculateTotals()) {
     const rows = materials.filter(material => material.description).map(material => `<tr><td>${escapeHtml(material.description)}</td><td>${getMaterialQtyLabel(material)}${getMaterialArea(material) ? ' m²' : ''}</td><td>${currency(getEffectiveCost(material) * (1 + MATERIAL_MARKUP / 100))}</td></tr>`).join('');
     const serviceRows = services.filter(service => service.task).map(service => `<tr><td>${escapeHtml(service.task)}</td><td>${escapeHtml(getServiceUnit(service))}</td><td>${getServiceQuantity(service)}</td><td>${currency(getServiceRate(service))}</td><td>${currency(getServiceRate(service) * getServiceQuantity(service))}</td></tr>`).join('');
     const supportingPhotos = sitePhotos.length ? `<section class="print-supporting-photos"><h3>Supporting photos</h3><div>${sitePhotos.map((photo, index) => `<figure><img src="${photo.data}" alt="Supporting photo ${index + 1}"><figcaption>${escapeHtml(photo.description || `Supporting photo ${index + 1}`)}</figcaption></figure>`).join('')}</div></section>` : '';
-    $('print-details').innerHTML = `<div class="print-document-title"><span>${isAmended ? 'AMENDED QUOTATION' : 'QUOTATION'}</span><strong>${escapeHtml($('quote-number').textContent)}</strong></div><div class="print-customer"><strong>${escapeHtml(customer)}</strong><span>${escapeHtml(phone)}</span><span>${escapeHtml(address)}</span>${description ? `<span><b>Requested services:</b> ${escapeHtml(description)}</span>` : ''}</div><h3>Labour &amp; call-out</h3><table><thead><tr><th>Description</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${labourRows}</tbody></table><h3>Materials</h3><table><thead><tr><th>Description</th><th>Qty</th><th>Selling price</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No materials added</td></tr>'}</tbody></table><h3>Services &amp; site work</h3><table><thead><tr><th>Task</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${serviceRows || '<tr><td colspan="5">No additional services</td></tr>'}</tbody></table><div class="print-totals"><span>Subtotal: ${currency(totals.subtotal)}</span><span>VAT (${totals.vatRate}%): ${currency(totals.vat)}</span><strong>Total: ${currency(totals.total)}</strong></div>${isAmended ? `<div class="print-amendment"><strong>Reason for amended quote</strong><span>${escapeHtml(amendmentReason)}</span></div>` : ''}${supportingPhotos}`;
+    $('print-details').innerHTML = `<div class="print-document-title"><span>${isAmended ? 'AMENDED QUOTATION' : 'QUOTATION'}</span><strong>${escapeHtml($('quote-number').textContent)}</strong></div><div class="print-customer"><strong>${escapeHtml(customer)}</strong><span>${escapeHtml(phone)}</span><span>${escapeHtml(address)}</span>${description ? `<span><b>Requested services:</b> ${escapeHtml(description)}</span>` : ''}</div><h3>Labour</h3><table><thead><tr><th>Description</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${labourRows}</tbody></table><h3>Materials</h3><table><thead><tr><th>Description</th><th>Qty</th><th>Selling price</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No materials added</td></tr>'}</tbody></table><h3>Services &amp; site work</h3><table><thead><tr><th>Task</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${serviceRows || '<tr><td colspan="5">No additional services</td></tr>'}</tbody></table><div class="print-totals"><span>Subtotal: ${currency(totals.subtotal)}</span><span>VAT (${totals.vatRate}%): ${currency(totals.vat)}</span><strong>Total: ${currency(totals.total)}</strong></div>${isAmended ? `<div class="print-amendment"><strong>Reason for amended quote</strong><span>${escapeHtml(amendmentReason)}</span></div>` : ''}${supportingPhotos}`;
 }
 function calculateTotals() {
     const { callout, labour } = getLabourTotals();
@@ -682,35 +1212,52 @@ function calculateTotals() {
     return { callout, labour, materialsTotal, servicesTotal, subtotal, vat, total: subtotal + vat, vatRate };
 }
 function renderServices() {
-    $('service-list').innerHTML = services.map((service, index) => { const group = service.scenario || 'Additional services'; const previousGroup = index ? services[index - 1].scenario || 'Additional services' : ''; const heading = group === previousGroup ? '' : `<div class="service-group-label">${escapeHtml(group)}</div>`; return `${heading}<div class="material-row service-row" data-index="${index}"><select class="service-category" aria-label="Service category"><option value="">Select category</option>${serviceCategories.map(category => `<option ${service.category === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select><select class="service-task" aria-label="Service task"><option value="">Select task</option>${getServiceTasks(service).map(task => `<option ${service.task === task ? 'selected' : ''}>${escapeHtml(task)}</option>`).join('')}</select>${unitSelect(getServiceUnit(service), `Unit for ${service.task || 'service'}`).replace('class="price-unit"', 'class="service-unit"')}<input class="service-quantity" type="number" min="1" step="1" value="${getServiceQuantity(service)}" aria-label="Service quantity"><span class="service-rate">${currency(getServiceRate(service))}</span><span class="service-total">${currency(getServiceRate(service) * getServiceQuantity(service))}</span><button class="remove-material" type="button" aria-label="Remove service">×</button></div>`; }).join('');
+    $('service-list').innerHTML = services.map((service, index) => { const group = service.scenario || 'Additional services'; const previousGroup = index ? services[index - 1].scenario || 'Additional services' : ''; const heading = group === previousGroup ? '' : `<div class="service-group-label">${escapeHtml(group)}</div>`; const serviceUnitValue = getServiceUnit(service); const measured = isMeasuredUnit(serviceUnitValue); return `${heading}<div class="material-row service-row" data-index="${index}"><select class="service-category" aria-label="Service category"><option value="">Select category</option>${serviceCategories.map(category => `<option ${service.category === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select><select class="service-task" aria-label="Service task"><option value="">Select task</option>${getServiceTasks(service).map(task => `<option ${service.task === task ? 'selected' : ''}>${escapeHtml(task)}</option>`).join('')}</select>${unitSelect(serviceUnitValue, `Unit for ${service.task || 'service'}`).replace('class="price-unit"', 'class="service-unit"')}<input class="service-quantity" type="number" min="${measured ? '0' : '1'}" step="${measured ? '0.01' : '1'}" value="${getServiceQuantity(service)}" aria-label="Service quantity (${escapeHtml(serviceUnitValue)})"><span class="service-rate">${currency(getServiceRate(service))}</span><span class="service-total">${currency(getServiceRate(service) * getServiceQuantity(service))}</span><button class="remove-material" type="button" aria-label="Remove service">×</button></div>`; }).join('');
     $('service-empty').style.display = services.length ? 'none' : 'block';
-    document.querySelectorAll('.service-row').forEach(row => { const index = Number(row.dataset.index); row.querySelector('.service-category').addEventListener('change', event => { services[index] = { ...services[index], category: event.target.value, task: '', unit: 'Each', quantity: 1, rate: 350 }; renderServices(); }); row.querySelector('.service-task').addEventListener('change', event => { services[index].task = event.target.value; services[index].unit = serviceUnits[event.target.value] || 'Each'; services[index].rate = serviceRates[event.target.value] || 350; renderServices(); }); row.querySelector('.service-unit').addEventListener('change', event => { services[index].unit = event.target.value; }); row.querySelector('.service-quantity').addEventListener('input', event => { services[index].quantity = getServiceQuantity({ quantity: event.target.value }); renderServices(); calculate(); }); row.querySelector('.remove-material').addEventListener('click', () => { services.splice(index, 1); renderServices(); calculate(); }); });
+    document.querySelectorAll('.service-row').forEach(row => { const index = Number(row.dataset.index); row.querySelector('.service-category').addEventListener('change', event => { services[index] = { ...services[index], category: event.target.value, task: '', unit: 'Each', quantity: 1, rate: 350 }; renderServices(); }); row.querySelector('.service-task').addEventListener('change', event => { services[index].task = event.target.value; services[index].unit = serviceUnits[event.target.value] || defaultServiceUnit(event.target.value); services[index].rate = serviceRates[event.target.value] || 350; renderServices(); calculate(); }); row.querySelector('.service-unit').addEventListener('change', event => { services[index].unit = event.target.value; }); /* Update the model and this row's total as the user types, without
+   re-rendering the list: a full re-render would wipe a half-typed
+   decimal (e.g. "12." on the way to 12.5 m²). */
+        row.querySelector('.service-quantity').addEventListener('input', event => {
+            services[index].quantity = getServiceQuantity({ quantity: event.target.value });
+            const totalCell = row.querySelector('.service-total');
+            if (totalCell) totalCell.textContent = currency(getServiceRate(services[index]) * getServiceQuantity(services[index]));
+            calculate();
+        });
+        row.querySelector('.remove-material').addEventListener('click', () => { services.splice(index, 1); renderServices(); calculate(); }); });
 }
 function syncMasterScenarioOptions() { ['scenario-select'].forEach(selectId => { const select = $(selectId); select.querySelectorAll('[data-master-scenario]').forEach(optionGroup => optionGroup.remove()); const categories = [...new Set(masterScenarioLibrary.map(([category]) => category))]; categories.forEach(category => { const group = document.createElement('optgroup'); group.label = category; group.dataset.masterScenario = 'true'; masterScenarioLibrary.filter(([libraryCategory]) => libraryCategory === category).forEach(([, name], index) => { const option = document.createElement('option'); option.value = `library-${masterScenarioLibrary.findIndex(([, scenarioName]) => scenarioName === name) + 1}`; option.textContent = name; group.append(option); }); select.append(group); }); }); }
 function syncCustomScenarioOptions() { ['scenario-select'].forEach(selectId => { const select = $(selectId); select.querySelectorAll('[data-custom-scenario]').forEach(option => option.remove()); let group = [...select.querySelectorAll('optgroup')].find(optionGroup => optionGroup.label === 'Custom scenarios'); if (!group) { group = document.createElement('optgroup'); group.label = 'Custom scenarios'; select.append(group); } customScenarios.forEach(scenario => { const option = document.createElement('option'); option.value = scenario.id; option.textContent = scenario.name; option.dataset.customScenario = 'true'; group.append(option); }); }); }
+function addScenario() { const scenario = scenarios[$('scenario-select').value]; if (!scenario) { showToast('Select a job scenario first'); return; } const scenarioName = $('scenario-select').selectedOptions[0].textContent.trim(); services.push(...scenario.services.map(service => ({ ...service, scenario: scenarioName }))); materials.push(...scenario.materials.map(material => ({ ...material }))); renderMaterials(); renderServices(); calculate(); showToast('Scenario added. Remove any items you do not need.'); }
 function renderLabourItems() {
     $('labour-list').innerHTML = labourItems.map((item, index) => `<div class="labour-row" data-index="${index}"><span>${escapeHtml(item.description)}</span><span>${escapeHtml(item.unit)}</span><input class="labour-quantity" type="number" min="0" step="1" value="${getValue(item.quantity)}" aria-label="Quantity for ${escapeHtml(item.description)}"><input class="labour-rate" type="number" min="0" step="0.01" value="${getValue(item.rate)}" aria-label="Cost per day for ${escapeHtml(item.description)}"><strong>${currency(getValue(item.quantity) * getValue(item.rate))}</strong></div>`).join('');
     document.querySelectorAll('.labour-row').forEach(row => { const index = Number(row.dataset.index); row.querySelector('.labour-quantity').addEventListener('input', event => { labourItems[index].quantity = getValue(event.target.value); renderLabourItems(); calculate(); }); row.querySelector('.labour-rate').addEventListener('input', event => { labourItems[index].rate = getValue(event.target.value); renderLabourItems(); calculate(); }); });
 }
-function addScenario() { const scenario = scenarios[$('scenario-select').value]; if (!scenario) { showToast('Select a job scenario first'); return; } const scenarioName = $('scenario-select').selectedOptions[0].textContent.trim(); services.push(...scenario.services.map(service => ({ ...service, scenario: scenarioName }))); materials.push(...scenario.materials.map(material => ({ ...material }))); renderMaterials(); renderServices(); calculate(); showToast('Scenario added. Remove any items you do not need.'); }
 function renderMaterials() {
-    $('material-list').innerHTML = materials.map((material, index) => `
+    $('material-list').innerHTML = materials.map((material, index) => {
+        const subGroups = materialSubGroups(material.category);
+        const activeSubGroup = materialCategoryScaffold(material.category, material.type, material.subGroup).subGroup;
+        const types = materialTypes(material.category, activeSubGroup);
+        const item = material.type ? materialItem({ ...material, subGroup: activeSubGroup }) : null;
+        return `
     <div class="material-row" data-index="${index}">
                 <select class="material-category" aria-label="Material category"><option value="">Select category</option>${catalogueCategories.map(category => `<option ${material.category === category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select>
-            <select class="material-type" aria-label="Material type"><option value="">Select type</option>${material.category && materialCatalogue[material.category] ? Object.keys(materialCatalogue[material.category]).map(type => `<option ${material.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('') : ''}</select>
-            <select class="material-size" aria-label="Material size"><option value="">Select size</option>${material.category && material.type && materialCatalogue[material.category]?.[material.type] ? Object.keys(materialCatalogue[material.category][material.type].sizes).map(size => `<option ${material.size === size ? 'selected' : ''}>${escapeHtml(size)}</option>`).join('') : ''}</select>
+            <select class="material-subgroup" aria-label="Material sub-group"><option value="">Select sub-group</option>${subGroups.map(group => `<option ${activeSubGroup === group ? 'selected' : ''}>${escapeHtml(group)}</option>`).join('')}</select>
+            <select class="material-type" aria-label="Material type"><option value="">Select type</option>${types.map(type => `<option ${material.type === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}</select>
+            <select class="material-size" aria-label="Material size"><option value="">Select size</option>${item ? Object.keys(item.sizes).map(size => `<option ${material.size === size ? 'selected' : ''}>${escapeHtml(size)}</option>`).join('') : ''}</select>
             <input class="material-quantity" type="number" min="1" step="1" value="${getQuantity(material)}" aria-label="Material quantity">
         <span class="material-best-price">${material.description ? currency(getSupplierCost(material)) : '—'}</span>
     <input class="material-markup" type="number" value="${MATERIAL_MARKUP}" aria-label="Material markup percentage" readonly>
     <span class="material-total">${currency(getEffectiveCost(material) * (1 + MATERIAL_MARKUP / 100))}</span>
       <button class="remove-material" type="button" aria-label="Remove material">×</button>
-    </div>`).join('');
+    </div>`;
+    }).join('');
     $('material-empty').style.display = materials.length ? 'none' : 'block';
     document.querySelectorAll('#material-list .material-row').forEach(row => {
         const index = Number(row.dataset.index);
-        row.querySelector('.material-category').addEventListener('change', event => { materials[index] = { category: event.target.value, type: '', size: '', description: '', cost: 0, markup: MATERIAL_MARKUP }; renderMaterials(); });
-        row.querySelector('.material-type').addEventListener('change', event => { materials[index].type = event.target.value; materials[index].size = ''; materials[index].markup = MATERIAL_MARKUP; renderMaterials(); });
-        row.querySelector('.material-size').addEventListener('change', event => { const item = materialCatalogue[materials[index].category]?.[materials[index].type]; if (!item || !event.target.value) return; materials[index].size = event.target.value; materials[index].description = `${materials[index].type} - ${event.target.value}`; materials[index].cost = item.sizes[event.target.value]; materials[index].markup = MATERIAL_MARKUP; renderMaterials(); });
+        row.querySelector('.material-category').addEventListener('change', event => { materials[index] = { category: event.target.value, subGroup: '', type: '', size: '', description: '', cost: 0, markup: MATERIAL_MARKUP }; renderMaterials(); });
+        row.querySelector('.material-subgroup').addEventListener('change', event => { materials[index].subGroup = event.target.value; materials[index].type = ''; materials[index].size = ''; materials[index].description = ''; materials[index].cost = 0; materials[index].markup = MATERIAL_MARKUP; renderMaterials(); });
+        row.querySelector('.material-type').addEventListener('change', event => { materials[index].type = event.target.value; materials[index].size = ''; materials[index].description = ''; materials[index].cost = 0; materials[index].markup = MATERIAL_MARKUP; renderMaterials(); });
+        row.querySelector('.material-size').addEventListener('change', event => { const selected = materialItem({ ...materials[index], subGroup: materialCategoryScaffold(materials[index].category, materials[index].type, materials[index].subGroup).subGroup }); if (!selected || !event.target.value) return; materials[index].subGroup = materialCategoryScaffold(materials[index].category, materials[index].type, materials[index].subGroup).subGroup; materials[index].size = event.target.value; materials[index].description = materialDescription(materials[index].type, event.target.value); materials[index].cost = selected.sizes[event.target.value]; materials[index].markup = MATERIAL_MARKUP; renderMaterials(); });
         row.querySelector('.material-quantity').addEventListener('input', event => { materials[index].quantity = Math.max(1, Math.floor(getValue(event.target.value))); renderMaterials(); calculate(); });
         materials[index].markup = MATERIAL_MARKUP;
         row.querySelector('.remove-material').addEventListener('click', () => { materials.splice(index, 1); renderMaterials(); calculate(); });
@@ -740,7 +1287,7 @@ function renderSavedQuotes() {
     document.querySelectorAll('[data-pdf]').forEach(button => button.addEventListener('click', () => viewSavedQuotePdf(Number(button.dataset.pdf))));
     document.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => { quotes.splice(Number(button.dataset.delete), 1); localStorage.setItem(storageKey('quotes'), JSON.stringify(quotes)); saveQuotesToDrive(true); renderSavedQuotes(); showToast('Quote deleted'); }));
 }
-function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = index; isAmended = Boolean(quote.amended); $('quote-status').textContent = isAmended ? 'AMENDED' : 'SAVED'; $('amendment-panel').hidden = !isAmended; $('customer-name').value = quote.customer.name; $('customer-phone').value = quote.customer.phone; $('customer-address').value = quote.customer.address; $('service-description').value = quote.customer.serviceDescription || ''; $('amendment-reason').value = quote.amendmentReason || ''; sitePhotos = (quote.customer.sitePhotos || (quote.customer.sitePhoto ? [quote.customer.sitePhoto] : [])).map(photo => typeof photo === 'string' ? { data: photo, description: '' } : photo); updateSitePhotoPreview(); labourItems = quote.labour.items ? quote.labour.items.map(item => ({ ...item })) : [{ description: 'Call-out fee', unit: 'Each', quantity: 1, rate: quote.labour.callout ?? 650, type: 'callout' }, { description: 'Inspection & evaluation', unit: 'Day', quantity: quote.labour.hours ?? 0, rate: quote.labour.plumberHourlyRate ?? quote.labour.hourlyRate ?? 500, type: 'labour' }, { description: 'Additional labour', unit: 'Day', quantity: quote.labour.extraWorkers ?? 0, rate: quote.labour.extraWorkerHourlyRate ?? 500, type: 'labour' }]; materials = quote.materials; services = quote.services || []; $('quote-number').textContent = quote.id; updateSummary(); renderLabourItems(); renderMaterials(); renderServices(); switchView('new-quote'); }
+function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = index; isAmended = Boolean(quote.amended); $('quote-status').textContent = isAmended ? 'AMENDED' : 'SAVED'; $('amendment-panel').hidden = !isAmended; $('customer-name').value = quote.customer.name; $('customer-phone').value = quote.customer.phone; $('customer-address').value = quote.customer.address; $('service-description').value = quote.customer.serviceDescription || ''; $('amendment-reason').value = quote.amendmentReason || ''; sitePhotos = (quote.customer.sitePhotos || (quote.customer.sitePhoto ? [quote.customer.sitePhoto] : [])).map(photo => typeof photo === 'string' ? { data: photo, description: '' } : photo); updateSitePhotoPreview(); labourItems = quote.labour.items ? quote.labour.items.map(item => ({ ...item })) : [{ description: 'Additional labour', unit: 'Day', quantity: quote.labour.extraWorkers ?? 0, rate: quote.labour.extraWorkerHourlyRate ?? quote.labour.plumberHourlyRate ?? quote.labour.hourlyRate ?? 500, type: 'labour' }]; materials = quote.materials; services = quote.services || []; $('quote-number').textContent = quote.id; updateSummary(); renderLabourItems(); renderMaterials(); renderServices(); switchView('new-quote'); }
 // ===================== SHARED DRIVE SYNC (MULTI-USER) =====================
 /*
    Quotes live in ONE Google Drive folder that the company owns,
@@ -759,12 +1306,12 @@ function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = inde
    markup but hidden, so an older cached page cannot show a dead control.
 
    WHERE THE SERVER IS
-   APS_DRIVE_FUNCTION_URL is set in config.js (never a secret - just a
+   SS_DRIVE_FUNCTION_URL is set in config.js (never a secret - just a
    URL). If it is blank the app stays fully usable offline and simply
    does not offer Drive, so the workshop is never left with a broken
    tool mid-setup.
 */
-const DRIVE_FUNCTION_URL = (typeof window !== 'undefined' && window.APS_DRIVE_FUNCTION_URL) || '';
+const DRIVE_FUNCTION_URL = (typeof window !== 'undefined' && window.SS_DRIVE_FUNCTION_URL) || '';
 let driveAvailable = false;
 let driveBusy = false;
 
@@ -921,7 +1468,7 @@ function exportQuotes() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `apc-quotes-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `shady-shaun-quotes-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
     showToast(`${quotes.length} quote${quotes.length === 1 ? '' : 's'} saved to file`);
@@ -949,8 +1496,8 @@ function importQuotes(file) {
 
 function viewSavedQuotePdf(index) { loadQuote(index); requestAnimationFrame(() => window.print()); }
 function switchView(view) { document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view)); document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view')); $(`${view}-view`).classList.add('active-view'); $('page-title').textContent = view === 'new-quote' ? 'Quote' : view === 'quotes' ? 'Saved quotes' : view === 'price-list' ? 'Price list' : 'Company settings'; if (view === 'price-list') renderPriceList(); }
-function loadSettings() { $('company-name').value = settings.name || ''; $('company-phone').value = settings.phone || ''; $('company-email').value = settings.email || ''; $('prepared-by').value = settings.preparedBy || ''; $('tax-number').value = settings.taxNumber || ''; $('print-prepared-by').textContent = settings.preparedBy || 'Cheyenne'; $('print-contact').textContent = settings.phone || '010 597 6616';
-    $('print-email').textContent = settings.email || 'info@agasouthafrica.co.za'; $('print-tax-number').textContent = settings.taxNumber || '105 976 616'; $('vat-rate').value = settings.vatRate ?? VAT_DEFAULT; $('quote-date').textContent = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function loadSettings() { $('company-name').value = settings.name || ''; $('company-phone').value = settings.phone || ''; $('company-email').value = settings.email || ''; $('prepared-by').value = settings.preparedBy || ''; $('tax-number').value = settings.taxNumber || ''; $('print-prepared-by').textContent = settings.preparedBy || 'Shaun'; $('print-contact').textContent = settings.phone || '071 683 1908';
+    $('print-email').textContent = settings.email || 'info@shadyshaun.co.za'; $('print-tax-number').textContent = settings.taxNumber || '105 976 616'; $('vat-rate').value = settings.vatRate ?? VAT_DEFAULT; $('quote-date').textContent = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => switchView(item.dataset.view)));
 document.querySelectorAll('.supplier-tab').forEach(tab => tab.addEventListener('click', () => { selectedSupplier = tab.dataset.supplier; document.querySelectorAll('.supplier-tab').forEach(item => item.classList.toggle('active', item === tab)); $('supplier-source').innerHTML = `Reference prices from ${supplierInfo[selectedSupplier].name} · <a href="${supplierInfo[selectedSupplier].url}" target="_blank" rel="noopener">Open supplier ↗</a>`; renderMaterials(); }));
@@ -960,7 +1507,7 @@ document.querySelector('#new-quote-view').addEventListener('change', event => { 
 $('site-photo').addEventListener('change', async event => { const files = [...event.target.files]; if (!files.length) return; if (files.some(file => !file.type.startsWith('image/'))) { showToast('Choose image files only'); event.target.value = ''; return; } try { sitePhotos.push(...(await Promise.all(files.map(compressSitePhoto))).map(data => ({ data, description: '' }))); updateSitePhotoPreview(); } catch { showToast('One or more photos could not be added'); } finally { event.target.value = ''; } });
 syncMasterScenarioOptions();
 syncCustomScenarioOptions();
-$('add-material').addEventListener('click', () => { materials.push({ category: '', type: '', size: '', quantity: 1, description: '', cost: 0, markup: MATERIAL_MARKUP }); renderMaterials(); document.querySelector('.material-category:last-of-type')?.focus(); });
+$('add-material').addEventListener('click', () => { materials.push({ category: '', subGroup: '', type: '', size: '', quantity: 1, description: '', cost: 0, markup: MATERIAL_MARKUP }); renderMaterials(); document.querySelector('.material-category:last-of-type')?.focus(); });
 $('add-service').addEventListener('click', () => { services.push({ category: '', task: '', quantity: 1, rate: 350, scenario: 'Additional services' }); renderServices(); document.querySelector('.service-category:last-of-type')?.focus(); });
 $('add-scenario').addEventListener('click', addScenario);
 function clearQuote() { resetForm(); showToast('Quote cleared'); }

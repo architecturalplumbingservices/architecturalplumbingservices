@@ -117,7 +117,7 @@ Notes:
 2. Open **`config.js`** in this repo and paste it in:
 
    ```js
-   window.APS_DRIVE_FUNCTION_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/drive";
+   window.SS_DRIVE_FUNCTION_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/drive";
    ```
 
 3. Commit and push. GitHub Pages redeploys automatically.

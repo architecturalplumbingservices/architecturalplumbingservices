@@ -1,11 +1,11 @@
 /* =========================================================
-   APS ARCHITECTURAL PERFORMANCE COATINGS — DEPLOYMENT CONFIGURATION
+   SHADY SHAUN — DEPLOYMENT CONFIGURATION
    ---------------------------------------------------------
    This file holds NOTHING secret. It is served to every
    visitor, so a password, API key or client secret must never
    be typed in here.
 
-   APS_DRIVE_FUNCTION_URL
+   SS_DRIVE_FUNCTION_URL
      The URL of the small backend function that reaches the
      shared Google Drive folder. After you deploy the function
      (see supabase/SETUP-DRIVE.md) paste its URL between the
@@ -20,4 +20,4 @@
    ========================================================= */
 "use strict";
 
-window.APS_DRIVE_FUNCTION_URL = "";
+window.SS_DRIVE_FUNCTION_URL = "";

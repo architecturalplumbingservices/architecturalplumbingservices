@@ -1,4 +1,4 @@
-name: Deploy APS to GitHub Pages
+name: Deploy Shady Shaun to GitHub Pages
 
 on:
   push:
@@ -31,11 +31,11 @@ jobs:
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload APS website
+      - name: Upload Shady Shaun website
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
 
-      - name: Deploy APS
+      - name: Deploy Shady Shaun
         id: deployment
         uses: actions/deploy-pages@v4

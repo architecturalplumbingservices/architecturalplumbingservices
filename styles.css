@@ -1,20 +1,29 @@
 :root {
-    /* Silver / dark blue / black palette */
-    --ink: #0d1b2e;
-    --muted: #5f6b7c;
-    --line: #c9ced6;
-    --paper: #eef0f3;
+    /*
+       Light baby blue / silver / dark blue palette.
+       A soft baby blue is the main brand colour (surfaces, buttons,
+       active states), silver is the neutral base, and dark blue is
+       used for all text and labels so copy stays high-contrast and
+       legible against the pale blue.
+    */
+    --ink: #0d2b52;
+    --muted: #33507a;
+    --line: #b6c2d2;
+    --paper: #eef6fc;
     --white: #fff;
-    --mint: #dde1e7;
-    --mint-strong: #9aa4b2;
-    --coral: #10376b;
+    --mint: #dbe7f6;
+    --mint-strong: #8fb2dc;
+    --coral: #5aa9dc;
     --yellow: #f3c76a;
-    --silver: #b8bfc9;
-    --silver-dark: #8a939f;
-    --navy: #10376b;
-    --navy-deep: #0a2547;
-    --black: #0d1b2e;
-    --shadow: 0 18px 45px rgba(13, 27, 46, .18)
+    --silver: #c8ccd4;
+    --silver-dark: #9aa2af;
+    --light-blue: #a8d5f0;
+    --light-blue-strong: #c4e4f7;
+    --light-blue-soft: #dbeefb;
+    --navy: #16406f;
+    --navy-deep: #0d2b52;
+    --black: #0d2b52;
+    --shadow: 0 18px 45px rgba(13, 43, 82, .18)
 }
 
 * {
@@ -89,23 +98,31 @@ button {
 
 .app-shell {
     display: flex;
+    flex-direction: column;
     min-height: 100vh
 }
 
+/*
+   The sidebar is now a horizontal header bar: the logo sits on the
+   left as the page heading, the nav tabs run left-to-right beneath
+   it, and the offline status sits on the right.
+*/
 .sidebar {
-    background: var(--black);
-    color: #e8eaee;
-    width: 220px;
-    padding: 24px 20px 20px;
+    position: relative;
+    background: linear-gradient(90deg, var(--light-blue) 0%, var(--light-blue-strong) 100%);
+    color: var(--navy-deep);
+    width: 100%;
+    padding: 16px 4.5% 0;
     display: flex;
     flex-direction: column;
+    gap: 12px;
     flex-shrink: 0
 }
 
 .brand {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: 16px;
     font-size: 16px;
     font-weight: 800;
     letter-spacing: .08em
@@ -125,54 +142,61 @@ button {
 
 .sidebar-kicker {
     font: 11px 'DM Mono', monospace;
-    color: var(--silver);
+    color: var(--navy-deep);
     letter-spacing: .12em;
-    margin: 48px 0 14px
+    margin: 0
 }
 
 .nav {
-    display: grid;
-    gap: 4px
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 4px;
+    border-bottom: 1px solid rgba(13, 27, 46, .12);
+    padding-right: 190px
 }
 
 .nav-item {
     border: 0;
     background: transparent;
-    color: #cdd3db;
+    color: var(--navy-deep);
     text-align: left;
-    padding: 10px 11px;
-    border-radius: 5px;
+    padding: 10px 16px;
+    border-radius: 6px 6px 0 0;
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    font-weight: 600
+    font-weight: 600;
+    white-space: nowrap
 }
 
 .nav-item:hover,
 .nav-item.active {
-    background: var(--navy);
-    color: var(--white)
+    background: var(--silver);
+    color: var(--navy-deep)
 }
 
 .nav-icon {
     font-size: 20px;
     line-height: 14px;
     width: 18px;
-    color: var(--mint-strong)
+    color: var(--navy-deep)
 }
 
 .nav-count {
     font: 11px 'DM Mono', monospace;
     margin-left: auto;
-    background: var(--navy);
+    background: var(--navy-deep);
     color: var(--silver);
     padding: 3px 7px;
     border-radius: 10px
 }
 
 .sidebar-footer {
-    margin-top: auto;
-    color: var(--silver);
+    position: absolute;
+    right: 4.5%;
+    bottom: 12px;
+    color: var(--navy-deep);
     display: flex;
     align-items: center;
     gap: 9px;
@@ -183,12 +207,13 @@ button {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--silver)
+    background: var(--navy-deep)
 }
 
 .main-content {
     max-width: 1340px;
     width: 100%;
+    margin: 0 auto;
     padding: 22px 4.5% 32px
 }
 
@@ -420,8 +445,8 @@ h2 {
 }
 
 .amendment-panel {
-    background: #fff8e8;
-    border: 1px solid #ead39c;
+    background: var(--light-blue-soft);
+    border: 1px solid var(--light-blue);
     padding: 15px;
     margin-top: 15px
 }
@@ -523,7 +548,7 @@ h2 {
 
 .material-headings {
     display: grid;
-    grid-template-columns: minmax(88px, 1.35fr) minmax(84px, 1.3fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
+    grid-template-columns: minmax(80px, 1.2fr) minmax(78px, 1.1fr) minmax(84px, 1.25fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
     gap: 6px;
     padding: 0 6px 7px;
     color: var(--muted);
@@ -539,7 +564,7 @@ h2 {
 
 .service-headings,
 .service-row {
-    grid-template-columns: minmax(96px, 1.15fr) minmax(150px, 2fr) 62px 44px 78px 92px 24px
+    grid-template-columns: minmax(96px, 1.15fr) minmax(140px, 2fr) 74px 58px 92px 100px 24px
 }
 
 .service-group-label {
@@ -559,7 +584,7 @@ h2 {
 
 .material-row {
     display: grid;
-    grid-template-columns: minmax(88px, 1.35fr) minmax(84px, 1.3fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
+    grid-template-columns: minmax(80px, 1.2fr) minmax(78px, 1.1fr) minmax(84px, 1.25fr) minmax(70px, 1fr) 40px 74px 54px 80px 22px;
     gap: 6px;
     align-items: center
 }
@@ -606,9 +631,9 @@ h2 {
 }
 
 .summary-card {
-    background: var(--navy-deep);
-    color: var(--white);
-    padding: 18px;
+    background: linear-gradient(180deg, var(--light-blue) 0%, var(--light-blue-strong) 100%);
+    color: var(--navy-deep);
+    padding: 14px;
     align-self: start;
     box-shadow: var(--shadow);
     position: sticky;
@@ -616,7 +641,7 @@ h2 {
 }
 
 .summary-card .eyebrow {
-    color: var(--silver)
+    color: var(--navy-deep)
 }
 
 .summary-top {
@@ -626,48 +651,48 @@ h2 {
 
 .summary-date {
     font: 10px 'DM Mono', monospace;
-    color: var(--silver)
+    color: var(--navy-deep)
 }
 
 .summary-customer {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
-    margin-top: 17px;
+    margin-top: 11px;
     letter-spacing: -.04em
 }
 
 .summary-address {
-    color: var(--silver);
+    color: var(--navy-deep);
     font-size: 12px;
-    margin-top: 7px;
-    min-height: 31px
+    margin-top: 5px;
+    min-height: 0
 }
 
 .summary-lines {
-    border-top: 1px solid var(--navy);
-    border-bottom: 1px solid var(--navy);
-    margin: 14px 0 10px;
-    padding: 9px 0;
+    border-top: 1px solid var(--navy-deep);
+    border-bottom: 1px solid var(--navy-deep);
+    margin: 10px 0 8px;
+    padding: 7px 0;
     display: grid;
-    gap: 6px
+    gap: 4px
 }
 
 .summary-lines div {
     display: flex;
     justify-content: space-between;
-    color: var(--silver);
+    color: var(--navy-deep);
     font-size: 12px
 }
 
 .summary-lines strong {
-    color: var(--white);
+    color: var(--navy-deep);
     font-weight: 600
 }
 
 .vat-row {
     display: flex;
     justify-content: space-between;
-    color: var(--silver);
+    color: var(--navy-deep);
     font: 11px 'DM Mono', monospace
 }
 
@@ -702,7 +727,7 @@ h2 {
 }
 
 .switch-label input:checked+.switch {
-    background: var(--coral)
+    background: var(--navy-deep)
 }
 
 .switch-label input:checked+.switch:after {
@@ -710,20 +735,20 @@ h2 {
 }
 
 .grand-total {
-    border-top: 1px solid var(--navy);
-    margin-top: 17px;
-    padding-top: 15px;
+    border-top: 1px solid var(--navy-deep);
+    margin-top: 11px;
+    padding-top: 10px;
     display: grid;
-    gap: 8px
+    gap: 5px
 }
 
 .grand-total span {
-    color: var(--silver);
+    color: var(--navy-deep);
     font-size: 12px
 }
 
 .grand-total strong {
-    font-size: 27px;
+    font-size: 24px;
     letter-spacing: -.055em
 }
 
@@ -738,27 +763,27 @@ h2 {
 }
 
 .primary-button {
-    background: var(--coral);
-    color: white;
+    background: var(--silver);
+    color: var(--navy-deep);
     display: flex;
     justify-content: space-between
 }
 
 .primary-button:hover {
-    background: var(--navy-deep)
+    background: var(--white)
 }
 
 .secondary-button {
     background: transparent;
-    color: var(--silver);
-    border: 1px solid var(--silver-dark);
+    color: var(--navy-deep);
+    border: 1px solid var(--navy-deep);
     margin-top: 10px
 }
 
 .summary-footnote {
     font-size: 10px;
     line-height: 1.5;
-    color: var(--silver-dark);
+    color: var(--navy-deep);
     margin: 14px 0 0
 }
 
@@ -860,37 +885,36 @@ h2 {
 
 @media(max-width:850px) {
     .sidebar {
-        width: 70px;
-        padding: 22px 12px
-    }
-
-    .brand {
-        justify-content: center
+        padding: 14px 16px 0
     }
 
     .brand-logo {
-        width: 46px;
+        width: 180px;
         max-width: 100%;
         height: auto
     }
 
-    .brand>span:last-child,
-    .sidebar-kicker,
-    .nav-item:not(.active)::after,
-    .nav-item {
-        font-size: 0
+    .brand {
+        align-items: flex-end
+    }
+
+    /* The tabs stay horizontal and scroll sideways rather than
+       squashing into unreadable icons. */
+    .nav {
+        padding-right: 0;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none
+    }
+
+    .nav::-webkit-scrollbar {
+        display: none
     }
 
     .nav-item {
-        justify-content: center;
-        padding: 13px 0
+        padding: 10px 14px
     }
 
-    .nav-icon {
-        font-size: 20px
-    }
-
-    .nav-count,
     .sidebar-footer {
         display: none
     }
@@ -935,16 +959,16 @@ h2 {
     }
 
     .material-row {
-        grid-template-columns: 1fr 1fr 1fr 40px 74px 56px 84px 22px
+        grid-template-columns: 1fr 1fr 1fr 1fr 40px 74px 56px 84px 22px
     }
 
     .material-headings {
-        grid-template-columns: 1fr 1fr 1fr 40px 74px 56px 84px 22px
+        grid-template-columns: 1fr 1fr 1fr 1fr 40px 74px 56px 84px 22px
     }
 
     .service-headings,
     .service-row {
-        grid-template-columns: 1.3fr 2.2fr 60px 40px 70px 80px 24px
+        grid-template-columns: 1.3fr 2.2fr 66px 52px 84px 92px 24px
     }
 
     .scenario-service-headings,
@@ -984,12 +1008,12 @@ h2 {
     }
 
     .material-row {
-        grid-template-columns: 1fr 1fr 1fr 32px 62px 46px 72px 20px;
+        grid-template-columns: 1fr 1fr 1fr 1fr 32px 62px 46px 72px 20px;
         gap: 4px
     }
 
     .material-headings {
-        grid-template-columns: 1fr 1fr 1fr 32px 62px 46px 72px 20px;
+        grid-template-columns: 1fr 1fr 1fr 1fr 32px 62px 46px 72px 20px;
         gap: 4px;
         font-size: 8px;
         padding-left: 4px;
@@ -998,7 +1022,7 @@ h2 {
 
     .service-headings,
     .service-row {
-        grid-template-columns: 1.15fr 1.85fr 50px 32px 60px 65px 20px
+        grid-template-columns: 1.15fr 1.85fr 58px 48px 76px 84px 20px
     }
 
     .scenario-service-headings,
@@ -1044,6 +1068,7 @@ h2 {
     .sidebar,
     .top-actions,
     .section-block,
+    .scenario-panel,
     .view-intro,
     .summary-card .primary-button,
     .summary-card .secondary-button {
@@ -1130,18 +1155,24 @@ h2 {
     outline-offset: -2px
 }
 
+/*
+   The logo artwork is pale lettering on a dark navy field. On the
+   light-blue header it would vanish, so it gets its own navy panel
+   and reads as the page heading.
+*/
 .brand-logo {
-    width: 155px;
+    width: 290px;
     height: auto;
     display: block;
-    background: transparent;
-    border-radius: 3px
+    background: var(--navy-deep);
+    box-shadow: 0 2px 8px rgba(13, 27, 46, .22);
+    border-radius: 6px
 }
 
 .company-print-header img {
-    width: 260px;
+    width: 320px;
     height: auto;
-    margin-bottom: 6px
+    margin-bottom: 4px
 }
 
 /*
@@ -1164,9 +1195,9 @@ h2 {
     display: flex;
     width: 100%;
     justify-content: space-between;
-    border: 1px solid var(--silver);
-    background: var(--paper);
-    color: var(--navy);
+    border: 1px solid var(--navy-deep);
+    background: var(--white);
+    color: var(--navy-deep);
     padding: 10px 12px;
     border-radius: 3px;
     font-weight: 800;
@@ -1281,15 +1312,15 @@ h2 {
     .print-details {
         display: block;
         color: var(--black);
-        margin: 14px 0 0
+        margin: 10px 0 0
     }
 
     .print-document-title {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
-        margin: 0 0 10px;
-        padding-bottom: 7px;
+        margin: 0 0 7px;
+        padding-bottom: 5px;
         border-bottom: 1px solid var(--black)
     }
 
@@ -1305,14 +1336,14 @@ h2 {
 
     .print-customer {
         display: grid;
-        gap: 4px;
+        gap: 2px;
         border: 1px solid var(--line);
-        padding: 12px;
-        font-size: 11px
+        padding: 8px 10px;
+        font-size: 10px
     }
 
     .print-customer strong {
-        font-size: 15px
+        font-size: 13px
     }
 
     .print-supporting-photos {
@@ -1347,13 +1378,13 @@ h2 {
     body .summary-card .print-details table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 5px;
-        font-size: 9px !important
+        margin-top: 3px;
+        font-size: 8px !important
     }
 
     body .summary-card .print-details h3 {
-        margin: 13px 0 0;
-        font-size: 10px !important;
+        margin: 8px 0 0;
+        font-size: 9px !important;
         text-transform: uppercase;
         letter-spacing: .04em
     }
@@ -1361,18 +1392,18 @@ h2 {
     body .summary-card .print-details th,
     body .summary-card .print-details td {
         border-bottom: 1px solid var(--line);
-        padding: 4px 5px;
+        padding: 2px 4px;
         text-align: left;
-        font-size: 9px !important
+        font-size: 8px !important
     }
 
     .print-amendment {
         display: grid;
-        gap: 4px;
-        margin-top: 14px;
-        padding: 8px 10px;
+        gap: 3px;
+        margin-top: 8px;
+        padding: 6px 8px;
         border: 1px solid #b88926;
-        font-size: 9px
+        font-size: 8px
     }
 
     .print-details th:not(:first-child),
@@ -1383,14 +1414,14 @@ h2 {
     .print-totals {
         display: grid;
         justify-content: end;
-        gap: 5px;
-        margin-top: 16px;
-        font-size: 11px
+        gap: 3px;
+        margin-top: 9px;
+        font-size: 10px
     }
 
     .print-totals strong {
-        font-size: 17px;
-        margin-top: 4px
+        font-size: 14px;
+        margin-top: 2px
     }
 }
 
@@ -1564,7 +1595,29 @@ h2 {
     color: var(--muted);
     font-size: 11px;
     font-weight: 700;
-    text-align: right
+    text-align: right;
+    white-space: nowrap
+}
+
+/* Rate and total are plain spans in the service row: keep them on one
+   line and out of the neighbouring cell, so longer amounts such as
+   "R 1 250,00" do not run into each other. */
+.service-row .service-rate,
+.service-row .service-total {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.service-row .service-total {
+    font-weight: 700;
+    color: var(--ink)
+}
+
+/* The unit dropdown carries values like "m²" and "Tonne"; give it room
+   and let it shrink cleanly on narrow screens. */
+.service-row .service-unit {
+    min-width: 0
 }
 
 .scenario-dialog {
@@ -1764,12 +1817,7 @@ body :not(h1, h2, .nav-icon, .icon-button, .text-button span, .remove-material, 
 
 @media(max-width:850px) {
 
-    body .sidebar .nav .nav-item,
-    body .sidebar .nav .nav-item:not(.active)::after {
-        font-size: 0 !important
-    }
-
-    .nav-icon {
-        font-size: 20px !important
+    body .sidebar .nav .nav-item {
+        font-size: 12px !important
     }
 }

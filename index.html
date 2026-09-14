@@ -6,14 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta name="theme-color" content="#0d1b2e">
-    <meta name="description" content="Offline quote and pricing calculator for APS Architectural Performance Coatings: coatings, handyman, building, electrical and plastering work">
+    <meta name="description" content="Offline quote and pricing calculator for Shady Shaun: construction site works, coatings, handyman, building, electrical and plastering work">
 
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/jpeg" href="APClogo.jpg">
-    <link rel="apple-touch-icon" href="APClogo.jpg">
+    <link rel="icon" type="image/jpeg" href="ShadyShaunLogo.jpg">
+    <link rel="apple-touch-icon" href="ShadyShaunLogo.jpg">
     <link rel="stylesheet" href="styles.css">
 
-    <title>APS Architectural Performance Coatings — Quote Calculator</title>
+    <title>Shady Shaun — Quote Calculator</title>
 </head>
 
 <body>
@@ -27,11 +27,11 @@
         <aside class="sidebar">
 
             <div class="brand">
-                <img class="brand-logo" src="APClogo.jpg" alt="APS Architectural Performance Coatings">
-            </div>
+                <img class="brand-logo" src="ShadyShaunLogo.jpg" alt="Shady Shaun">
 
-            <div class="sidebar-kicker">
-                FIELD QUOTING / 01
+                <div class="sidebar-kicker">
+                    I'M SURE I CAN DO IT / 01
+                </div>
             </div>
 
             <nav class="nav" aria-label="Main navigation">
@@ -96,7 +96,7 @@
                     </span>
 
                     <span class="quote-id" id="quote-number">
-                        APC-2026-001
+                        SS-2026-001
                     </span>
 
                     <button class="clear-quote-top" id="clear-quote-top" title="Clear quote" aria-label="Clear quote"
@@ -234,7 +234,7 @@
 
 
                         <!-- =====================================
-                             LABOUR & CALL-OUT
+                             LABOUR
                              ===================================== -->
 
                         <section class="section-block">
@@ -247,7 +247,7 @@
                                     </span>
 
                                     <h2>
-                                        Labour &amp; call-out
+                                        Labour
                                     </h2>
                                 </div>
 
@@ -273,7 +273,7 @@
                             <div class="inline-total">
 
                                 <span>
-                                    Labour &amp; call-out total
+                                    Labour total
                                 </span>
 
                                 <strong id="labour-total">
@@ -368,6 +368,7 @@
 
                             <div class="material-headings" aria-hidden="true">
                                 <span>Category</span>
+                                <span>Sub-group</span>
                                 <span>Material</span>
                                 <span>Size</span>
                                 <span>Qty</span>
@@ -387,7 +388,6 @@
                             </div>
 
                         </section>
-
 
                         <!-- =====================================
                              JOB SCENARIOS
@@ -412,7 +412,6 @@
 
                             </div>
 
-
                             <div class="scenario-controls">
 
                                 <select id="scenario-select" aria-label="Job scenario">
@@ -420,7 +419,6 @@
                                     <option value="">
                                         Select a job scenario
                                     </option>
-
 
                                     <optgroup label="Quick start">
 
@@ -471,7 +469,6 @@
                                     </optgroup>
                                 </select>
 
-
                                 <button class="primary-button compact" id="add-scenario" type="button">
                                     Add scenario
                                 </button>
@@ -479,7 +476,6 @@
                             </div>
 
                         </section>
-
 
                         <!-- =====================================
                              SERVICES & SITE WORK
@@ -586,49 +582,61 @@
 
                         <div class="company-print-header">
 
-                            <img src="APClogo.jpg" alt="APS Architectural Performance Coatings">
+                                <img src="ShadyShaunLogo.jpg" alt="Shady Shaun">
 
-                            <span>
-                                ARCHITECTURAL PERFORMANCE COATINGS
-                            </span>
-
-                            <small>
-                                Reg No: 2025/816148/07<br>
-                                5 Louis Friedman Street, Central Lake Factory Park<br>
-                                Unit 7, Factoria, Krugersdorp
-                            </small>
-
-
-                            <div class="company-contact-print">
-
-                                <b>OFFICE</b><br>
-
-                                Prepared by:
-                                <span id="print-prepared-by">
-                                    Cheyenne
+                                <span>
+                                    SHADY SHAUN
                                 </span>
-                                <br>
 
-                                Contact:
-                                <span id="print-contact">
-                                    010 597 6616
-                                </span>
-                                <br>
+                                <small>
+                                    I'M SURE I CAN DO IT<br>
+                                    General building, handyman, electrical &amp;<br>
+                                    plumbing work
+                                </small>
 
-                                Email:
-                                <span id="print-email">
-                                    info@agasouthafrica.co.za
-                                </span>
-                                <br>
+                                <div class="company-contact-print">
 
-                                Tax reference:
-                                <span id="print-tax-number">
-                                    105 976 616
-                                </span>
+                                    <b>OFFICE</b><br>
+
+                                    Prepared by:
+                                    <span id="print-prepared-by">
+                                        Shaun
+                                    </span>
+                                    <br>
+
+                                    Contact:
+                                    <span id="print-contact">
+                                        071 683 1908
+                                    </span>
+                                    <br>
+
+                                    Email:
+                                    <span id="print-email">
+                                        info@shadyshaun.co.za
+                                    </span>
+                                    <br>
+
+                                    Tax reference:
+                                    <span id="print-tax-number">
+                                        105 976 616
+                                    </span>
+
+                                </div>
+
+                                <div class="company-contact-print">
+
+                                    <b>BANKING DETAILS</b><br>
+
+                                    Account name: SW Futcher<br>
+
+                                    Bank: Standard Bank, Centurion<br>
+
+                                    Account no: 301269017<br>
+
+                                    Branch code: 012645
+                                </div>
 
                             </div>
-
-                        </div>
 
 
                         <!-- SUMMARY TOP -->
@@ -660,17 +668,6 @@
                         <!-- SUMMARY LINES -->
 
                         <div class="summary-lines">
-
-                            <div>
-                                <span>
-                                    Call-out
-                                </span>
-
-                                <strong id="summary-callout">
-                                    R 650.00
-                                </strong>
-                            </div>
-
 
                             <div>
                                 <span>
@@ -788,12 +785,12 @@
 
                         <header class="terms-header">
 
-                            <img src="APClogo.jpg" alt="APS Architectural Performance Coatings">
+                            <img src="ShadyShaunLogo.jpg" alt="Shady Shaun">
 
                             <div>
 
                                 <span>
-                                    APS ARCHITECTURAL PERFORMANCE COATINGS
+                                    SHADY SHAUN
                                 </span>
 
                                 <h2 id="terms-title">
@@ -949,6 +946,23 @@
                                     Basic site cleanup is included. Full waste
                                     removal may be quoted separately unless
                                     specifically included in the scope of work.
+                                </span>
+                            </li>
+
+                            <li>
+                                <strong>Materials warranty and workmanship</strong>
+                                <span>
+                                    Materials supplied by the client are used
+                                    entirely at the client's own risk. Where
+                                    materials are supplied by us, the
+                                    manufacturer's warranty applies to those
+                                    materials, and we remain responsible for the
+                                    quality of our workmanship. The client has
+                                    14 days from completion to inspect the work
+                                    and report any snags in writing. Any
+                                    call-backs after this period, or caused by
+                                    client-supplied materials or outside work,
+                                    will be charged for.
                                 </span>
                             </li>
 
@@ -1119,7 +1133,7 @@
                             Email address
                         </span>
 
-                        <input id="company-email" type="email" placeholder="hello@yourbusiness.co.za">
+                        <input id="company-email" type="email" placeholder="info@shadyshaun.co.za">
 
                     </label>
 
@@ -1141,7 +1155,7 @@
                             Prepared by
                         </span>
 
-                        <input id="prepared-by" type="text" placeholder="Cheyenne">
+                        <input id="prepared-by" type="text" placeholder="Shaun">
 
                     </label>
 
@@ -1283,7 +1297,7 @@
 
 
     <!-- =========================================================
-         APS APPLICATION
+         SHADY SHAUN APPLICATION
          config.js loads first: it carries the backend URL the app
          needs to reach the shared Drive. It contains no secrets.
          The Google sign-in library is no longer needed - quotes are
@@ -1311,13 +1325,13 @@
             window.addEventListener('load', async () => {
                 try {
                     const registration = await navigator.serviceWorker.register('./service-worker.js');
-                    console.log('APS service worker registered:', registration.scope);
+                    console.log('Shady Shaun service worker registered:', registration.scope);
                 } catch (error) {
-                    console.error('APS service worker registration failed:', error);
+                    console.error('Shady Shaun service worker registration failed:', error);
                 }
             });
         } else {
-            console.log('APS service worker skipped: page is not running in a secure context.');
+            console.log('Shady Shaun service worker skipped: page is not running in a secure context.');
         }
 
 

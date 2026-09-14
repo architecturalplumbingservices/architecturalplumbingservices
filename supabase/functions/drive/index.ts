@@ -1,5 +1,5 @@
 /* =========================================================
-   APS / PIPEWISE — SHARED GOOGLE DRIVE BACKEND
+   SHADY SHAUN — SHARED GOOGLE DRIVE BACKEND
    ---------------------------------------------------------
    WHY THIS EXISTS
    A static site (GitHub Pages) cannot safely hold a Google
