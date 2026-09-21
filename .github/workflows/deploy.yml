@@ -1,4 +1,4 @@
-name: Deploy Shady Shaun to GitHub Pages
+name: Deploy APS Quote Calculator to GitHub Pages
 
 on:
   push:
@@ -30,12 +30,39 @@ jobs:
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
+      #
+      # `path: .` publishes EVERY file in the repository, including any
+      # credential that happens to be sitting in the working tree. A Google
+      # client secret and account recovery codes were previously shipped to
+      # the public site this way. This step fails the build rather than
+      # quietly publishing a secret, so it cannot happen again.
+      #
+      - name: Refuse to publish secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=$(find . -path ./.git -prune -o \
+                    -type f \
+                    \( -name '*client_secret*' \
+                       -o -name '*recovery-codes*' \
+                       -o -name '*.pem' \
+                       -o -name '*.key' \
+                       -o -name 'service-account*.json' \
+                       -o -name '.env*' \
+                    \) -print)
+          if [ -n "$found" ]; then
+            echo "::error::Refusing to deploy — credential files found in the publish folder:"
+            echo "$found"
+            echo "Move them outside the repository before pushing."
+            exit 1
+          fi
+          echo "No credential files found — safe to publish."
 
-      - name: Upload Shady Shaun website
+      - name: Upload APS website
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
 
-      - name: Deploy Shady Shaun
+      - name: Deploy APS calculator
         id: deployment
         uses: actions/deploy-pages@v4

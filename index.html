@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="theme-color" content="#0d1b2e">
-    <meta name="description" content="Offline quote and pricing calculator for Shady Shaun: construction site works, coatings, handyman, building, electrical and plastering work">
+    <meta name="theme-color" content="#123b70">
+    <meta name="description" content="Offline plumbing quote and pricing calculator">
 
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/jpeg" href="ShadyShaunLogo.jpg">
-    <link rel="apple-touch-icon" href="ShadyShaunLogo.jpg">
+    <link rel="icon" type="image/jpeg" href="APClogo.jpg">
+    <link rel="apple-touch-icon" href="APClogo.jpg">
     <link rel="stylesheet" href="styles.css">
 
-    <title>Shady Shaun — Quote Calculator</title>
+    <title>Pipewise Quote Calculator</title>
 </head>
 
 <body>
@@ -27,11 +27,11 @@
         <aside class="sidebar">
 
             <div class="brand">
-                <img class="brand-logo" src="ShadyShaunLogo.jpg" alt="Shady Shaun">
+                <img class="brand-logo" src="APClogo.jpg" alt="APS Architectural Plumbing Services">
+            </div>
 
-                <div class="sidebar-kicker">
-                    I'M SURE I CAN DO IT / 01
-                </div>
+            <div class="sidebar-kicker">
+                FIELD QUOTING / 01
             </div>
 
             <nav class="nav" aria-label="Main navigation">
@@ -55,6 +55,17 @@
                 <button class="nav-item" data-view="price-list" type="button">
                     <span class="nav-icon">▥</span>
                     Price list
+                </button>
+
+                <button class="nav-item" data-view="scenarios" type="button">
+                    <span class="nav-icon">☷</span>
+                    Scenarios
+                </button>
+
+                <button class="nav-item" data-view="planning" type="button">
+                    <span class="nav-icon">◱</span>
+                    Project planning
+                    <span class="nav-count" id="planning-count">0</span>
                 </button>
 
             </nav>
@@ -81,7 +92,7 @@
 
                 <div>
                     <div class="eyebrow">
-                        COATINGS &amp; TRADE OPERATIONS
+                        PLUMBING OPERATIONS
                     </div>
 
                     <h1 id="page-title">
@@ -96,7 +107,7 @@
                     </span>
 
                     <span class="quote-id" id="quote-number">
-                        SS-2026-001
+                        PW-2026-001
                     </span>
 
                     <button class="clear-quote-top" id="clear-quote-top" title="Clear quote" aria-label="Clear quote"
@@ -234,7 +245,7 @@
 
 
                         <!-- =====================================
-                             LABOUR
+                             LABOUR & CALL-OUT
                              ===================================== -->
 
                         <section class="section-block">
@@ -247,7 +258,7 @@
                                     </span>
 
                                     <h2>
-                                        Labour
+                                        Labour &amp; call-out
                                     </h2>
                                 </div>
 
@@ -273,7 +284,7 @@
                             <div class="inline-total">
 
                                 <span>
-                                    Labour total
+                                    Labour &amp; call-out total
                                 </span>
 
                                 <strong id="labour-total">
@@ -325,25 +336,27 @@
 
                             <div class="supplier-tabs" role="tablist" aria-label="Supplier price source">
 
-                                <button class="supplier-tab active" data-supplier="builders" role="tab" type="button">
+                                <button class="supplier-tab active" data-supplier="plumblink" role="tab" type="button">
+                                    Plumblink
+                                </button>
+
+                                <button class="supplier-tab" data-supplier="builders" role="tab" type="button">
                                     Builders
                                 </button>
 
-                                <button class="supplier-tab" data-supplier="chamberlains" role="tab" type="button">
-                                    Chamberlains
-                                </button>
-
-                                <button class="supplier-tab" data-supplier="buildit" role="tab" type="button">
-                                    Build it
+                                <button class="supplier-tab" data-supplier="bathroom" role="tab" type="button">
+                                    Bathroom Bizarre
                                 </button>
 
                             </div>
 
 
                             <div class="supplier-source" id="supplier-source">
-                                Reference prices from Builders catalogue ·
+                                Prices shown from Plumblink reference
+                                catalogue ·
 
-                                <a href="https://www.builders.co.za/" target="_blank" rel="noopener noreferrer">
+                                <a href="https://www.plumblink.co.za/all-products" target="_blank"
+                                    rel="noopener noreferrer">
                                     Open supplier ↗
                                 </a>
                             </div>
@@ -368,13 +381,14 @@
 
                             <div class="material-headings" aria-hidden="true">
                                 <span>Category</span>
-                                <span>Sub-group</span>
-                                <span>Material</span>
+                                <span>Material type</span>
                                 <span>Size</span>
+                                <span>Width (mm)</span>
+                                <span>Height (mm)</span>
                                 <span>Qty</span>
                                 <span>Best price</span>
                                 <span>Markup</span>
-                                <span>Total</span>
+                                <span>Selling price</span>
                                 <span></span>
                             </div>
 
@@ -388,6 +402,7 @@
                             </div>
 
                         </section>
+
 
                         <!-- =====================================
                              JOB SCENARIOS
@@ -412,6 +427,7 @@
 
                             </div>
 
+
                             <div class="scenario-controls">
 
                                 <select id="scenario-select" aria-label="Job scenario">
@@ -420,54 +436,129 @@
                                         Select a job scenario
                                     </option>
 
-                                    <optgroup label="Quick start">
 
-                                        <option value="handyman-odd-jobs">
-                                            General odd jobs &amp; repairs
+                                    <optgroup label="Drainage &amp; water supply">
+
+                                        <option value="underground-pipe">
+                                            Replace underground pipe
                                         </option>
 
-                                        <option value="handyman-shelves">
-                                            Fit shelves &amp; furniture
+                                        <option value="blocked-drain">
+                                            Unblock drain or sewer
                                         </option>
 
-                                        <option value="handyman-door">
-                                            Hang or repair doors
+                                        <option value="unblock-toilet">
+                                            Unblock toilet
                                         </option>
 
-                                        <option value="handyman-tv-mount">
-                                            Mount TV or wall bracket
+                                        <option value="unblock-sewer">
+                                            Unblock sewer line
                                         </option>
 
-                                        <option value="electric-plug">
-                                            Install plug point
+                                        <option value="collapsed-sewer">
+                                            Collapsed sewer pipe
                                         </option>
 
-                                        <option value="electric-fault">
-                                            Trace &amp; repair electrical fault
+                                        <option value="main-water-pipe">
+                                            Replace main water pipe
                                         </option>
 
-                                        <option value="building-wall">
-                                            Build new wall
+                                        <option value="outside-tap">
+                                            Install outside tap
                                         </option>
 
-                                        <option value="building-slab">
-                                            Cast concrete slab
-                                        </option>
-
-                                        <option value="plaster-wall">
-                                            Plaster interior wall
-                                        </option>
-
-                                        <option value="coatings-waterproofing">
-                                            Waterproofing coating
-                                        </option>
-
-                                        <option value="excavation-only">
-                                            Excavation &amp; earthworks
+                                        <option value="water-meter">
+                                            Replace water meter
                                         </option>
 
                                     </optgroup>
+
+
+                                    <optgroup label="Geysers &amp; pumps">
+
+                                        <option value="geyser-install">
+                                            Install geyser
+                                        </option>
+
+                                        <option value="geyser-leak">
+                                            Repair geyser leak
+                                        </option>
+
+                                        <option value="geyser-element">
+                                            Replace geyser element
+                                        </option>
+
+                                        <option value="pressure-pump">
+                                            Install pressure pump
+                                        </option>
+
+                                    </optgroup>
+
+
+                                    <optgroup label="Bathrooms &amp; fixtures">
+
+                                        <option value="bathroom-install">
+                                            Bathroom installation
+                                        </option>
+
+                                        <option value="replace-toilet">
+                                            Replace toilet
+                                        </option>
+
+                                        <option value="install-toilet">
+                                            Install new toilet
+                                        </option>
+
+                                        <option value="replace-basin">
+                                            Replace basin
+                                        </option>
+
+                                        <option value="replace-bath">
+                                            Replace bath
+                                        </option>
+
+                                        <option value="replace-shower">
+                                            Replace shower
+                                        </option>
+
+                                    </optgroup>
+
+
+                                    <optgroup label="Leaks &amp; access">
+
+                                        <option value="leak-repair">
+                                            Repair water leak
+                                        </option>
+
+                                        <option value="wall-leak">
+                                            Repair leak inside wall
+                                        </option>
+
+                                        <option value="floor-leak">
+                                            Repair leak under floor
+                                        </option>
+
+                                        <option value="paving-access">
+                                            Access pipe under paving
+                                        </option>
+
+                                        <option value="concrete-access">
+                                            Access pipe under concrete
+                                        </option>
+
+                                    </optgroup>
+
+
+                                    <optgroup label="Site work">
+
+                                        <option value="excavation-only">
+                                            Plumbing excavation only
+                                        </option>
+
+                                    </optgroup>
+
                                 </select>
+
 
                                 <button class="primary-button compact" id="add-scenario" type="button">
                                     Add scenario
@@ -476,6 +567,7 @@
                             </div>
 
                         </section>
+
 
                         <!-- =====================================
                              SERVICES & SITE WORK
@@ -505,8 +597,8 @@
 
                             <p class="material-note">
                                 Add physical work separately from materials,
-                                such as electrical, building, plastering, painting,
-                                coatings, excavation, cleaning, or equipment.
+                                such as excavation, restoration, cleaning,
+                                or equipment.
                             </p>
 
 
@@ -582,61 +674,49 @@
 
                         <div class="company-print-header">
 
-                                <img src="ShadyShaunLogo.jpg" alt="Shady Shaun">
+                            <img src="APClogo.jpg" alt="APS Architectural Plumbing Services">
 
-                                <span>
-                                    SHADY SHAUN
+                            <span>
+                                ARCHITECTURAL PLUMBING SERVICES
+                            </span>
+
+                            <small>
+                                Reg No: 2025/816148/07<br>
+                                Unit 7, Central Lake Factory Park<br>
+                                5 Louis Friedman Street, Factoria, Krugersdorp
+                            </small>
+
+
+                            <div class="company-contact-print">
+
+                                <b>OFFICE</b><br>
+
+                                Prepared by:
+                                <span id="print-prepared-by">
+                                    Cheyenne
+                                </span>
+                                <br>
+
+                                Contact:
+                                <span id="print-contact">
+                                    076 705 8718
+                                </span>
+                                <br>
+
+                                Email:
+                                <span id="print-email">
+                                    architecturalplumbingservices@gmail.com
+                                </span>
+                                <br>
+
+                                Tax reference:
+                                <span id="print-tax-number">
+                                    105 976 616
                                 </span>
 
-                                <small>
-                                    I'M SURE I CAN DO IT<br>
-                                    General building, handyman, electrical &amp;<br>
-                                    plumbing work
-                                </small>
-
-                                <div class="company-contact-print">
-
-                                    <b>OFFICE</b><br>
-
-                                    Prepared by:
-                                    <span id="print-prepared-by">
-                                        Shaun
-                                    </span>
-                                    <br>
-
-                                    Contact:
-                                    <span id="print-contact">
-                                        071 683 1908
-                                    </span>
-                                    <br>
-
-                                    Email:
-                                    <span id="print-email">
-                                        info@shadyshaun.co.za
-                                    </span>
-                                    <br>
-
-                                    Tax reference:
-                                    <span id="print-tax-number">
-                                        105 976 616
-                                    </span>
-
-                                </div>
-
-                                <div class="company-contact-print">
-
-                                    <b>BANKING DETAILS</b><br>
-
-                                    Account name: SW Futcher<br>
-
-                                    Bank: Standard Bank, Centurion<br>
-
-                                    Account no: 301269017<br>
-
-                                    Branch code: 012645
-                                </div>
-
                             </div>
+
+                        </div>
 
 
                         <!-- SUMMARY TOP -->
@@ -668,6 +748,17 @@
                         <!-- SUMMARY LINES -->
 
                         <div class="summary-lines">
+
+                            <div>
+                                <span>
+                                    Call-out
+                                </span>
+
+                                <strong id="summary-callout">
+                                    R 650.00
+                                </strong>
+                            </div>
+
 
                             <div>
                                 <span>
@@ -785,12 +876,12 @@
 
                         <header class="terms-header">
 
-                            <img src="ShadyShaunLogo.jpg" alt="Shady Shaun">
+                            <img src="APClogo.jpg" alt="APS Architectural Plumbing Services">
 
                             <div>
 
                                 <span>
-                                    SHADY SHAUN
+                                    APS ARCHITECTURAL PLUMBING SERVICES
                                 </span>
 
                                 <h2 id="terms-title">
@@ -949,23 +1040,6 @@
                                 </span>
                             </li>
 
-                            <li>
-                                <strong>Materials warranty and workmanship</strong>
-                                <span>
-                                    Materials supplied by the client are used
-                                    entirely at the client's own risk. Where
-                                    materials are supplied by us, the
-                                    manufacturer's warranty applies to those
-                                    materials, and we remain responsible for the
-                                    quality of our workmanship. The client has
-                                    14 days from completion to inspect the work
-                                    and report any snags in writing. Any
-                                    call-backs after this period, or caused by
-                                    client-supplied materials or outside work,
-                                    will be charged for.
-                                </span>
-                            </li>
-
                         </ol>
 
 
@@ -1049,12 +1123,20 @@
                             Load from file
                         </button>
 
-                        <button class="primary-button compact" id="drive-save-button" type="button" hidden>
-                            Share to Drive
+                        <button class="primary-button compact" id="cloud-signin-button" type="button" hidden>
+                            Sign in to cloud
                         </button>
 
-                        <button class="primary-button compact" id="drive-load-button" type="button" hidden>
-                            Sync from Drive
+                        <button class="primary-button compact" id="cloud-sync-button" type="button" hidden>
+                            Sync now
+                        </button>
+
+                        <button class="secondary-button compact" id="cloud-save-button" type="button" hidden>
+                            Upload this device's quotes
+                        </button>
+
+                        <button class="secondary-button compact" id="cloud-signout-button" type="button" hidden>
+                            Sign out
                         </button>
 
                         <button class="primary-button compact" id="new-quote-button" type="button">
@@ -1065,7 +1147,7 @@
 
                 </div>
 
-                <p class="drive-status" id="drive-status" style="margin: 0 0 12px; font-size: 13px; opacity: .7;"></p>
+                <p class="cloud-status" id="cloud-status" style="margin: 0 0 12px; font-size: 13px; opacity: .7;"></p>
 
                 <input type="file" id="import-quotes-file" accept="application/json,.json" hidden>
 
@@ -1111,7 +1193,7 @@
                             Company name
                         </span>
 
-                        <input id="company-name" type="text" placeholder="Your business">
+                        <input id="company-name" type="text" placeholder="Your plumbing business">
 
                     </label>
 
@@ -1133,7 +1215,7 @@
                             Email address
                         </span>
 
-                        <input id="company-email" type="email" placeholder="info@shadyshaun.co.za">
+                        <input id="company-email" type="email" placeholder="hello@yourbusiness.co.za">
 
                     </label>
 
@@ -1155,7 +1237,7 @@
                             Prepared by
                         </span>
 
-                        <input id="prepared-by" type="text" placeholder="Shaun">
+                        <input id="prepared-by" type="text" placeholder="Cheyenne">
 
                     </label>
 
@@ -1277,14 +1359,388 @@
             </section>
 
 
-            </main>
+            <!-- =================================================
+                 SCENARIOS VIEW
+                 ================================================= -->
+
+            <section id="scenarios-view" class="view">
+
+                <div class="view-intro">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            SCENARIO TEMPLATES
+                        </span>
+
+                        <h2>
+                            Scenarios
+                        </h2>
+
+                        <p class="view-note">
+                            Choose a job scenario to edit the services
+                            added to a quote.
+                        </p>
+
+                    </div>
+
+
+                    <div class="price-list-actions">
+
+                        <button class="secondary-button compact" id="new-scenario" type="button">
+                            + New scenario
+                        </button>
+
+
+                        <button class="secondary-button compact" id="add-scenario-service" type="button">
+                            + Add service
+                        </button>
+
+
+                        <button class="primary-button compact" id="save-scenario" type="button">
+                            Save scenario
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="scenario-editor">
+
+                    <label class="field scenario-editor-select">
+
+                        <span>
+                            Job scenario
+                        </span>
+
+                        <select id="scenario-editor-select" aria-label="Scenario to edit"></select>
+
+                    </label>
+
+
+                    <div class="scenario-service-headings" aria-hidden="true">
+
+                        <span>Category</span>
+                        <span>Task</span>
+                        <span>Unit</span>
+                        <span>Qty</span>
+                        <span>Rate</span>
+                        <span>Total</span>
+                        <span></span>
+
+                    </div>
+
+
+                    <div class="scenario-editor-list" id="scenario-editor-list"></div>
+
+
+                    <div class="material-empty" id="scenario-editor-empty">
+                        Select a scenario to edit its linked services.
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 PROJECT PLANNING VIEW
+                 ================================================= -->
+
+            <section id="planning-view" class="view">
+
+                <div class="view-intro">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            SITE SCHEDULING
+                        </span>
+
+                        <h2>
+                            Project planning
+                        </h2>
+
+                        <p class="view-note">
+                            Create a project, pull in the items from a saved
+                            quote, then plan the work with dates,
+                            responsibility and progress.
+                        </p>
+
+                    </div>
+
+                    <div class="price-list-actions">
+
+                        <button class="secondary-button compact" id="new-project" type="button">
+                            + New project
+                        </button>
+
+                        <button class="primary-button compact" id="save-project" type="button">
+                            Save project
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- PROJECT SWITCHER -->
+
+                <div class="planning-toolbar">
+
+                    <label class="field planning-project-select">
+
+                        <span>
+                            Project
+                        </span>
+
+                        <select id="planning-project-select" aria-label="Project to plan"></select>
+
+                    </label>
+
+                    <div class="planning-actions">
+
+                        <label class="field planning-quote-select">
+
+                            <span>
+                                Pull items from saved quote
+                            </span>
+
+                            <select id="planning-quote-select" aria-label="Saved quote to pull items from"></select>
+
+                        </label>
+
+                        <button class="secondary-button compact" id="add-quote-items" type="button">
+                            Add quote items
+                        </button>
+
+                        <button class="secondary-button compact" id="add-planning-task" type="button">
+                            + Add task
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- PROJECT DETAILS -->
+
+                <div class="settings-panel planning-details">
+
+                    <label class="field">
+
+                        <span>
+                            Project name
+                        </span>
+
+                        <input id="project-name" type="text" maxlength="120"
+                            placeholder="e.g. Bathroom renovation - Mokoena">
+
+                    </label>
+
+                    <label class="field">
+
+                        <span>
+                            Customer
+                        </span>
+
+                        <input id="project-customer" type="text" maxlength="120" placeholder="e.g. Thandi Mokoena">
+
+                    </label>
+
+                    <label class="field field-wide">
+
+                        <span>
+                            Site address
+                        </span>
+
+                        <input id="project-address" type="text" maxlength="200"
+                            placeholder="Street address, suburb, city">
+
+                    </label>
+
+                    <label class="field">
+
+                        <span>
+                            Start date
+                        </span>
+
+                        <input id="project-start" type="date">
+
+                    </label>
+
+                    <label class="field">
+
+                        <span>
+                            Target completion
+                        </span>
+
+                        <input id="project-end" type="date">
+
+                    </label>
+
+                    <label class="field">
+
+                        <span>
+                            Status
+                        </span>
+
+                        <select id="project-status" aria-label="Project status">
+                            <option value="planning">Planning</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="in-progress">In progress</option>
+                            <option value="on-hold">On hold</option>
+                            <option value="complete">Complete</option>
+                        </select>
+
+                    </label>
+
+                    <label class="field">
+
+                        <span>
+                            Lead / assigned to
+                        </span>
+
+                        <input id="project-lead" type="text" maxlength="80" placeholder="e.g. Sipho">
+
+                    </label>
+
+                </div>
+
+                <!-- PROGRESS -->
+
+                <div class="planning-progress" id="planning-progress"></div>
+
+                <!-- PLANNING HEADINGS -->
+
+                <div class="planning-headings" aria-hidden="true">
+                    <span>Source</span>
+                    <span>Task</span>
+                    <span>Qty</span>
+                    <span>Linked quote</span>
+                    <span>Start</span>
+                    <span>Finish</span>
+                    <span>Owner / crew</span>
+                    <span>Stage</span>
+                    <span></span>
+                </div>
+
+                <div class="planning-list" id="planning-list"></div>
+
+                <div class="material-empty" id="planning-empty">
+                    Create a project, then add quote items or a task to
+                    plan the work.
+                </div>
+
+            </section>
+
+        </main>
 
     </div>
 
 
     <!-- =========================================================
-         TOAST
+         NEW SCENARIO DIALOG
          ========================================================= -->
+
+    <dialog class="scenario-dialog" id="scenario-dialog" aria-labelledby="scenario-dialog-title">
+
+        <form id="scenario-form">
+
+            <h2 id="scenario-dialog-title">
+                New scenario
+            </h2>
+
+
+            <label class="field">
+
+                <span>
+                    Scenario name
+                </span>
+
+                <input id="new-scenario-name" type="text" maxlength="80" placeholder="e.g. Replace kitchen mixer"
+                    required>
+
+            </label>
+
+
+            <div class="scenario-dialog-actions">
+
+                <button class="secondary-button compact" type="button" id="cancel-scenario">
+                    Cancel
+                </button>
+
+
+                <button class="primary-button compact" type="submit">
+                    Create scenario
+                </button>
+
+            </div>
+
+            </form>
+
+        </dialog>
+
+        <!-- =========================================================
+             CLOUD SIGN-IN DIALOG
+             ========================================================= -->
+
+        <dialog class="scenario-dialog" id="cloud-dialog" aria-labelledby="cloud-dialog-title">
+
+            <form id="cloud-form">
+
+                <h2 id="cloud-dialog-title">
+                    Sign in
+                </h2>
+
+                <p class="cloud-dialog-note">
+                    Sign in to share quotes, company details and the price
+                    list with everyone else using this app. You can keep
+                    quoting without signing in — everything is saved on
+                    this device either way.
+                </p>
+
+                <label class="field">
+
+                    <span>
+                        Email address
+                    </span>
+
+                    <input id="cloud-email" type="email" autocomplete="username"
+                        placeholder="you@example.co.za">
+
+                </label>
+
+                <label class="field">
+
+                    <span>
+                        Password
+                    </span>
+
+                    <input id="cloud-password" type="password" autocomplete="current-password"
+                        placeholder="Your password">
+
+                </label>
+
+                <p class="cloud-dialog-status" id="cloud-dialog-status" role="status"></p>
+
+                <div class="scenario-dialog-actions">
+
+                    <button class="secondary-button compact" type="button" id="cloud-cancel">
+                        Cancel
+                    </button>
+
+                    <button class="primary-button compact" type="submit" id="cloud-submit">
+                        Sign in
+                    </button>
+
+                </div>
+
+            </form>
+
+        </dialog>
+
+        <!-- =========================================================
+             TOAST
+             ========================================================= -->
 
     <div class="toast" id="toast" role="status"></div>
 
@@ -1297,16 +1753,14 @@
 
 
     <!-- =========================================================
-         SHADY SHAUN APPLICATION
-         config.js loads first: it carries the backend URL the app
-         needs to reach the shared Drive. It contains no secrets.
-         The Google sign-in library is no longer needed - quotes are
-         shared through the backend, not through an individual's
-         Google account.
+         APS APPLICATION
+         config.js loads first: it carries the cloud function URL and
+         the public anon key the app needs to reach the shared quote
+         database. It contains no secrets — see the notes in that file.
          ========================================================= -->
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=2"></script>
+    <script src="app.js?v=2"></script>
 
 
     <!-- =========================================================
@@ -1325,13 +1779,13 @@
             window.addEventListener('load', async () => {
                 try {
                     const registration = await navigator.serviceWorker.register('./service-worker.js');
-                    console.log('Shady Shaun service worker registered:', registration.scope);
+                    console.log('Pipewise service worker registered:', registration.scope);
                 } catch (error) {
-                    console.error('Shady Shaun service worker registration failed:', error);
+                    console.error('Pipewise service worker registration failed:', error);
                 }
             });
         } else {
-            console.log('Shady Shaun service worker skipped: page is not running in a secure context.');
+            console.log('Pipewise service worker skipped: page is not running in a secure context.');
         }
 
 
