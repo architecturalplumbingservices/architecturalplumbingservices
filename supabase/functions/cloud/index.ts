@@ -34,7 +34,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
    CORS — only the real site and local development may call in.
    --------------------------------------------------------- */
 const ALLOWED_ORIGINS = [
-  "https://belshie1.github.io",
+  "https://architecturalplumbingservices.github.io",
   "http://localhost:8123",
   "http://localhost:3000",
   "http://127.0.0.1:8123",

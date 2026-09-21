@@ -158,7 +158,7 @@ Then commit and push. GitHub Pages redeploys automatically.
 
 ## Step 6 — Check it works
 
-1. Open <https://belshie1.github.io/aps/>
+1. Open <https://architecturalplumbingservices.github.io/>
 2. Go to **Saved quotes**. You should see **Sign in to cloud**.
 3. Click it, sign in with an account from Step 4.
 4. The buttons change to **Sync now** / **Upload this device's

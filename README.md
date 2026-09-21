@@ -27,6 +27,6 @@ This repository includes a GitHub Pages deployment workflow. After the changes a
 1. Open the repository's **Settings** > **Pages**.
 2. Under **Build and deployment**, select **GitHub Actions** as the source.
 3. Open the **Actions** tab and wait for **Deploy GitHub Pages** to finish.
-4. Open `https://belshie1.github.io/aps/` from any device with an internet connection.
+4. Open `https://architecturalplumbingservices.github.io/` from any device with an internet connection.
 
 The app remains offline-capable after its first successful load. Saved quotes, company settings, custom scenarios, and photos are stored locally in each browser. They are not automatically shared between devices.
