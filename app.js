@@ -3,6 +3,7 @@ const MATERIAL_MARKUP = 45;
 let selectedSupplier = 'plumblink';
 const currency = value => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(Number(value) || 0);
 const $ = id => document.getElementById(id);
+const $$ = selector => [...document.querySelectorAll(selector)];
 let materials = [];
 let services = [];
 let sitePhotos = [];
@@ -1113,7 +1114,450 @@ function persistProjects() {
 function nextProjectNumber() { return `PR-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`; }
 
 function emptyPlanningTask(source = 'Manual') {
-    return { source, task: '', quantity: 1, quoteId: '', start: '', finish: '', owner: '', stage: 'Not started' };
+    return { source, task: '', quantity: 1, duration: 0, days: 0, daysOverridden: false, quoteId: '', start: '', startPinned: false, finish: '', owner: '', stage: 'Not started' };
+}
+
+/* ============================ TASK DURATIONS ============================
+   "How long will it take" needs a time per task, and nothing in the app held
+   one - serviceRates is money. So times live in their own table, editable on
+   the Price list page exactly like the rates, keyed by task name.
+
+   Values are MINUTES for one unit of the task. They are starting estimates to
+   be corrected against real jobs, not authoritative figures.
+*/
+const DEFAULT_TASK_MINUTES = {
+    /* call-out, inspection, diagnostics */
+    'Call-out and inspection': 60, 'Emergency call-out': 60,
+    'Site inspection': 30, 'Inspection': 20, 'Inspection & evaluation': 45,
+    'Toilet inspection': 15, 'Inspect toilet': 15, 'Inspect geyser': 15,
+    'Inspect sewer line': 30, 'Inspect installation point': 20, 'Leak inspection': 30,
+    'Leak detection': 60, 'Pressure test': 30,
+    'Pressure test after repair': 20, 'Flow test': 20, 'Test drainage': 20,
+    'Water testing': 30, 'Test operation': 20, 'Test geyser': 20, 'Test system': 20,
+    'Test toilet': 10, 'Test flushing': 10, 'Test water flow': 15, 'Test water pressure': 15,
+
+    /* locating and marking */
+    'Locate leak': 30, 'Locate blockage': 30, 'Locate damaged section': 45,
+    'Locate existing pipe': 30, 'Locate pipe': 30, 'Locate drain access': 20,
+    'Locate collapse': 45, 'Mark leak location': 10, 'Mark pipe route': 15,
+    'Mark excavation area': 15, 'Mark affected area': 10, 'Mark pipe positions': 20,
+    'Mark problem location': 15, 'Mark pipe location': 15, 'Measure location': 15,
+    'Trace water pipe route': 45, 'Determine pipe route': 30,
+
+    /* isolation and making safe */
+    'Isolate water': 10, 'Isolate electricity': 10, 'Isolate electrical supply': 15,
+    'Shut off main water': 10, 'Shut-off isolation': 15, 'Temporary water isolation': 20,
+    'Restore water supply': 10, 'Restore electricity': 15, 'Protect surrounding area': 10,
+    'Protect work area': 15, 'Close inspection point': 10, 'Open inspection point': 10,
+    'Open manhole': 15, 'Open drain or manhole': 15, 'Open inspection point ': 10,
+
+    /* pipework */
+    'Repair leaking pipes': 60, 'Repair leaking pipe': 60, 'Repair burst pipe': 90,
+    'Repair pipe': 45, 'Repair plumbing': 60, 'Repair water pipe': 45,
+    'Repair pipework': 60, 'Repair waste pipe': 45, 'Install pipe': 45,
+    'Install new pipe': 60, 'Install new water pipes': 90, 'Install new section': 45,
+    'Install new pipe section': 45, 'Remove damaged pipe': 30,
+    'Remove existing pipe': 30, 'Replace damaged pipes': 60, 'Replace pipe': 45,
+    'Replace fittings': 20, 'Replace valve': 30, 'Replace leaking pipe': 60,
+    'Supply new pipe': 15, 'Supply replacement pipe': 15, 'Supply pipe': 15,
+    'Install fittings': 20, 'Install isolation valve': 25, 'Install shut-off valve': 25,
+    'Install drain valve': 25, 'Install non-return valve': 25, 'Install sleeves and pipe protection': 20,
+    'Disconnect water': 10, 'Disconnect waste pipe': 10, 'Disconnect waste': 10,
+    'Disconnect water supply': 10, 'Disconnect plumbing': 15, 'Connect water': 15,
+    'Connect water supply': 15, 'Connect waste': 15, 'Connect waste pipe': 15,
+    'Connect hot water': 20, 'Connect cold water': 20, 'Connect to existing pipe': 25,
+    'Connect to municipal supply': 45, 'Connect to water supply': 20,
+    'Flush pipe': 20, 'Flush system': 25, 'Flush toilet': 5, 'Check for leaks': 15,
+    'Check pipe gradient': 20, 'Install pipe bedding': 20, 'Pipe bedding': 20,
+
+    /* drainage, sewer, jetting */
+    'Unblock drain or sewer line': 90, 'Remove blockage': 45, 'Manual clearing': 30,
+    'Use drain rods': 45, 'Use drain machine': 60, 'High-pressure jetting': 90,
+    'Drain snake': 45, 'Mechanical drain cleaning': 60, 'Chemical treatment': 30,
+    'Root removal': 60, 'Grease removal': 45, 'Scale removal': 45,
+    'CCTV inspection': 60, 'Camera inspection': 60, 'Record inspection': 15,
+    'Provide inspection report': 30, 'Identify blockage': 20, 'Identify cracked pipe': 20,
+    'Dispose of removed material': 20, 'Dispose of old pipe': 20, 'Dispose of old toilet': 15,
+
+    /* excavation and breaking */
+    'Dig trench for water or sewer pipe': 240, 'Excavate trench': 240, 'Excavation': 240,
+    'Trenching': 240, 'Excavate soil': 180, 'Excavate to access underground pipe': 240,
+    'Hand excavation around services': 120, 'Backfill trench': 120, 'Backfill excavation': 120,
+    'Backfill': 120, 'Compact or stamp ground': 60, 'Compact soil': 60, 'Compact trench': 60,
+    'Compact': 60, 'Level ground': 60, 'Sift soil': 90, 'Sift soil and remove rubble': 90,
+    'Remove excess soil': 60, 'Remove soil and rubble': 90, 'Remove soil and debris': 90,
+    'Remove rubble': 45, 'Remove building rubble': 60, 'Load rubble': 30,
+    'Break concrete': 120, 'Break concrete or floor': 120, 'Break and remove concrete': 180,
+    'Cut concrete': 90, 'Remove concrete rubble': 90, 'Cut trench through paving or concrete': 180,
+    'Remove paving': 60, 'Carefully remove paving': 90, 'Store paving for reuse': 20,
+    'Reinstate paving or concrete': 120, 'Reinstall paving': 90, 'Level paving': 45,
+    'Repair concrete': 90, 'Fill and cement hole': 60, 'Prepare concrete area': 45,
+    'Pour new concrete': 90, 'Finish concrete': 45,
+
+    /* sanitaryware */
+    'Remove old toilet': 30, 'Remove existing toilet': 30, 'Disconnect old toilet': 15,
+    'Supply toilet': 5, 'Install new toilet': 60, 'Install toilet': 60, 'Seal toilet': 15,
+    'Level toilet': 15, 'Remove old basin': 30, 'Remove existing basin': 30,
+    'Install basin': 60, 'Install taps': 30, 'Install basin mixer or taps': 30,
+    'Replace basin': 90, 'Remove old bath': 45, 'Remove existing bath': 45,
+    'Install bath': 90, 'Seal bath': 20, 'Level bath': 20, 'Install bath taps': 30,
+    'Remove old shower tray': 45, 'Remove shower enclosure': 30,
+    'Install shower tray': 90, 'Install shower enclosure': 90, 'Install mixer': 45,
+    'Install shower mixer': 45, 'Install shower head': 20, 'Install shower arm': 20,
+    'Seal shower': 20, 'Silicone seal': 15, 'Seal basin': 15, 'Seal installation': 15,
+    'Grouting': 45, 'Replace tiles': 180, 'Remove tiles': 90, 'Tile replacement': 120,
+    'Tile removal': 90, 'Waterproofing': 120, 'Plaster wall': 90, 'Plaster repair': 90,
+    'Paint touch-up': 30, 'Close wall': 60, 'Close opening': 60,
+
+    /* geysers */
+    'Drain geyser': 30, 'Refill geyser': 30, 'Fill geyser': 30, 'Install geyser': 120,
+    'Remove existing geyser': 60, 'Supply new geyser': 15, 'Supply new element': 5,
+    'Remove old element': 20, 'Install new element': 20, 'Replace element': 30,
+    'Replace gasket': 15, 'Replace pressure relief valve': 30,
+    'Replace temperature pressure valve': 30, 'Supply pump': 10, 'Install pump': 90,
+    'Install inlet pipe': 45, 'Install outlet pipe': 45, 'Install valves': 45,
+    'Prime pump': 20, 'Commission system': 30,
+
+    /* clean-up */
+    'Clean area': 20, 'Clean work area': 20, 'Clean site': 25, 'Clean water damage': 45,
+    'Clean manhole': 20, 'Remove waste': 20, 'Move soil': 30, 'Load or unload materials': 30,
+    'Reinstall cupboard or panel': 45, 'Make good damaged area': 45,
+    'Seal wall opening': 20, 'Reinstate surface': 45, 'Surface reinstatement': 45,
+
+    /* materials handling */
+    'Collect materials': 30, 'Materials procurement': 30, 'Deliver materials to site': 30,
+    'Collect hire equipment': 30,
+
+        /* equipment */
+        'Jackhammer hire': 120, 'Ground compactor hire': 60, 'Excavator hire': 240, 'Core drill hire': 60, 'Core drill through wall': 45,
+        'Chase wall for new pipe': 90, 'Chase wall': 90, 'Drill through wall': 30,
+
+        /* ---- wording used by the master scenario library ---- */
+        'Call-out': 60, 'Investigation': 60, 'Plumbing survey': 90, 'Scheduled inspection': 30,
+        'Initial inspection': 30, 'Sanitaryware inspection': 20, 'Drainage inspection': 30,
+        'Drain inspection': 30, 'Geyser inspection': 20, 'Valve inspection': 20, 'Tap inspection': 15,
+        'Pump inspection': 30, 'Backflow inspection': 30, 'Stormwater drainage': 60,
+        'Cold-water inspection': 30, 'Hot-water inspection': 30, 'Grease trap inspection': 30,
+        'Inspect existing plumbing': 45, 'Inspect supply pipe': 30, 'Inspect inlet and outlet': 20,
+        'Inspect valves': 20, 'Inspect filters': 20, 'Inspect manhole': 20, 'Inspect stormwater system': 45,
+        'Inspect connection': 20, 'Inspect pressure reducing valve': 20, 'Geyser installation': 120,
+        'Pump installation': 90, 'Pump supply': 10, 'Pump selection': 20, 'Pump': 20, 'Pump out waste': 45,
+        'Tank installation': 120, 'Tank supply': 15, 'Tank base preparation': 120,
+        'Thermal imaging inspection': 45, 'Moisture meter inspection': 30, 'Water meter monitoring': 30,
+        'Acoustic leak detection': 45, 'CCTV camera inspection': 60, 'Final camera inspection': 45,
+        'CCTV confirmation': 30, 'Video recording': 15, 'Provide video footage': 15,
+        'Measure approximate location': 15,
+
+        /* locating */
+        'Locate underground leak': 60, 'Locate concealed pipe leak': 45, 'Locate damaged pipe': 45,
+        'Locate main water supply': 30, 'Locate root intrusion': 45, 'Locate services': 30,
+        'Locate valve': 20, 'Locate water supply': 30, 'Locate access point': 20,
+        'Identify existing services': 30, 'Identify leaking component': 20, 'Identify source': 20,
+        'Identify collapsed pipe': 20, 'Identify displaced joint': 20, 'Identify root ingress': 20,
+
+        /* isolation / making safe */
+        'Isolate area': 10, 'Isolate supply': 10, 'Isolate water supply': 10,
+        'Make safe': 15, 'Protect area': 10, 'Mark work area': 10, 'Mark excavation': 15,
+        'Site setup': 45, 'Site establishment': 60, 'Leak containment': 20, 'Stop leak': 30,
+
+        /* pipe and fitting work */
+        'Add new connection': 45, 'Add new pipe': 60, 'Add new valve': 30, 'Alter waste pipe': 45,
+        'Alter water pipe': 45, 'Connect pipe': 25, 'Connect taps': 30, 'Connect overflow': 15,
+        'Connect electrical supply': 30, 'Electrical connection': 30, 'Connect machine': 20,
+        'Connect existing drainage': 30, 'Connect existing services': 30, 'Connect existing system': 30,
+        'Connect to existing sewer': 30, 'Cut damaged pipe': 20, 'Cut into existing pipe': 30,
+        'Cut out damaged section': 30, 'Expose pipe': 30, 'Expose damaged pipe': 30,
+        'Install sewer pipe': 60, 'Install valve': 30, 'Install floor drain': 60,
+        'Install overflow': 20, 'Install trap': 30, 'Install waste': 20, 'Install waste connection': 20,
+        'Install waste fitting': 25, 'Install waste pipe': 45, 'Install water supply': 45,
+        'Install hose': 15, 'Install shower': 90, 'Install shower rail': 30, 'Install shower waste': 30,
+        'Install handheld shower': 20, 'Install new meter': 45, 'Install pressure gauge': 20,
+        'Install pressure reducing valve': 30, 'Install pressure controller': 30,
+        'Install backflow prevention': 60, 'Install expansion control': 30,
+        'Install unit connection': 30, 'Install washing machine point': 45,
+        'Install washing machine valve': 25, 'Install water hammer arrestor': 30,
+        'Non-return valve': 25, 'Isolation valve': 25, 'Isolation valves': 40, 'Valves': 40,
+        'Pipe fittings': 20, 'Pipe installation': 60, 'Pipe repair': 60, 'Pipework': 45,
+        'Plumbing repair': 60, 'Plumbing layout': 60, 'Inlet pipe': 45, 'Outlet pipe': 45,
+        'Discharge pipe': 30, 'Vent pipes': 45, 'Overflow': 20, 'Flexible hose': 20,
+        'Float switch': 20, 'Float valve': 25, 'Fittings': 20, 'Trap': 20, 'Valve': 25,
+        'Replace O-rings': 15, 'Replace washer': 15, 'Replace board': 30, 'Replace cartridge': 30,
+        'Replace spindle': 30, 'Replace frame': 30, 'Replace flush valve': 30, 'Replace flush button': 20,
+        'Replace cistern washer': 20, 'Replace inlet valve': 30, 'Replace toilet connector': 25,
+        'Replace toilet seal': 25, 'Replace pan connector': 25, 'Replace isolation valve': 30,
+        'Replace non-return valve': 30, 'Replace safety valve': 30, 'Replace expansion valve': 30,
+        'Replace pressure reducing valve': 30, 'Replace faulty valve': 30, 'Replace damaged fittings': 25,
+        'Replace pipe fitting': 30, 'Replace section of pipe': 45, 'Replace geyser': 120,
+        'Replace waste': 25, 'Replace waste fitting': 25, 'Replace waste pipe': 45,
+        'Replace trap': 30, 'Replace paving': 90, 'Replace grate': 20, 'Replace manhole cover': 25,
+        'Replace insulation': 20, 'Replace flexible hose': 20, 'Replace sprinkler': 30,
+        'Replace irrigation pipe': 45, 'Replace damaged grate': 25, 'Replace damaged section': 60,
+        'Replace damaged plumbing': 45, 'Replace toilet': 90, 'Supply fittings': 15, 'Supply valve': 10,
+        'Supply tap': 10, 'Supply tee': 10, 'Supply waste': 10, 'Supply basin': 10, 'Supply bath': 15,
+        'Supply basin mixer or taps': 10, 'Supply bottle trap': 10, 'Supply cistern fittings': 10,
+        'Supply couplings': 10, 'Supply bends': 10, 'Supply junctions': 10, 'Supply sewer pipe': 15,
+        'Supply stormwater pipe': 15, 'Supply hot-water pipe': 15, 'Supply new bath': 15,
+        'Supply new main pipe': 15, 'Supply new meter': 10, 'Supply new shower': 15,
+        'Supply new toilet': 10, 'Supply toilet seat': 10, 'Supply flexible connectors': 10,
+        'Supply flexible hose': 10, 'Supply isolation valve': 10, 'Supply isolation valves': 15,
+        'Supply geyser valves': 10, 'Supply pressure control equipment': 15,
+        'Supply drip tray': 15, 'Supply expansion vessel': 10, 'Supply discharge pipe': 10,
+        'Supply replacement valve': 10, 'Pressure control': 20, 'Pressure controller': 20,
+        'Seal joints': 15, 'Seal threaded connection': 10, 'Secure pipework': 20,
+        'Reconnect fixtures': 30, 'Reconnect pipes': 30, 'Reconnect waste': 15, 'Reconnect water': 15,
+        'Adjust pressure': 15, 'Check pressure': 15, 'Retest pressure': 20, 'Water pressure test': 30,
+        'Water pressure testing': 30, 'Leak test': 20, 'Testing': 30, 'Test': 20, 'Test flow': 20,
+        'Test flush': 10, 'Test inlet': 15, 'Test pump': 20, 'Test tap': 15, 'Test zones': 20,
+        'Test discharge': 20, 'Test sewer flow': 20, 'Flow testing': 20, 'Drain test': 20,
+        'Check leaks': 15, 'Check valves': 20, 'Check filters': 15, 'Check fittings': 15,
+        'Check geyser': 15, 'Check isolation valves': 20, 'Check municipal supply': 20,
+        'Check non-return valve': 20, 'Check pipe supports': 20, 'Check pressure reducing valve': 20,
+        'Check temperature': 15, 'Check blocked pipes': 30, 'Check expansion control': 20,
+
+        /* drainage / sewer / jetting */
+        'Clear blockage': 45, 'Clear restriction': 45, 'Remove roots': 60, 'Remove grease': 45,
+        'Root cutting': 60, 'Mechanical root cutting': 60, 'Mechanical cleaning': 60,
+        'High-pressure cleaning': 90, 'High-pressure drain jetting': 90, 'High-pressure wash': 45,
+        'Jetting': 90, 'Jet drain': 90, 'Drain jetting': 90, 'Drain cleaning': 60,
+        'Drainage': 45, 'Snake drain': 45, 'Plunger': 15, 'Drain section': 45, 'Drain system': 45,
+        'Clear drain': 45, 'Clean drain': 45, 'Open drain': 20, 'Open grease trap': 20,
+        'Trap cleaning': 30, 'Grease trap cleaning': 45, 'Waste pipe cleaning': 45,
+        'Manhole cleaning': 30, 'Clean catch pit': 30, 'Remove grate': 15, 'Remove leaves and debris': 20,
+        'Remove hair and debris': 20, 'Remove adhesive': 30, 'Flush drainage line': 25,
+        'Flush drainage system': 30, 'Flush sewer': 25, 'Emergency drain clearing': 90,
+        'Emergency pipe repair': 90, 'Drain affected system': 30, 'Sewer inspection': 30,
+        'Sewer connections': 45, 'Underground drainage': 90, 'Underground water supply': 90,
+        'Attempt manual blockage removal': 30, 'Remove old pipework': 45, 'Remove existing sewer pipe': 45,
+        'Remove collapsed pipe': 30, 'Remove existing main': 45, 'Remove old valves': 30,
+        'Remove old tap': 20, 'Remove existing tap': 20, 'Remove tap': 20, 'Remove valve': 25,
+        'Remove trap': 25, 'Remove debris': 30, 'Remove concrete': 90, 'Remove access tiles': 60,
+        'Remove and reinstall toilet': 90, 'Remove existing sanitaryware': 90, 'Remove old pipe': 30,
+        'Remove cabinet or access panel': 30, 'Remove shower mixer': 30, 'Remove existing shower fittings': 45,
+        'Remove waste cover': 15, 'Remove soil': 90, 'Excess soil removal': 60, 'Soil removal': 90,
+        'Spoil handling': 45, 'Excavate': 180, 'Machine excavation': 240, 'Hand excavation': 120,
+        'Break open wall floor or ceiling': 90, 'Open ceiling': 60, 'Close ceiling': 60,
+        'Open or chase wall': 90, 'Open chase': 60, 'Close chase': 60, 'Concrete breaking': 120,
+        'Concrete cutting': 90, 'Concrete reinstatement': 120, 'Concrete supply': 30,
+        'Reinforcement': 30, 'Curing': 60, 'Reinstatement': 90, 'Reinstate': 90,
+        'Reinstate paving or soil': 90, 'Compaction': 45, 'Sand bedding': 20, 'Joint sand': 20,
+        'Number and store pavers': 20, 'Cut replacement pavers': 30, 'Replacement tiles': 120,
+        'Tile': 90, 'Tile adhesive': 20, 'Tile reinstatement': 120, 'Plaster': 90, 'Skim': 60,
+        'Paint': 30, 'Repair tiles': 120, 'Repair walls': 90, 'Repair benching': 45,
+        'Repair sprinkler': 45, 'Repair stormwater pipe': 60, 'Repair waste connection': 30,
+        'Raise or lower manhole': 60, 'Insulation': 30, 'Waterproofing repair': 90,
+        'Waterproofing interface': 60,
+
+        /* cleanup and admin */
+        'Cleaning': 30, 'Cleaning report': 15, 'Dispose of waste': 20,
+        'Basin testing': 15, 'Bath testing': 15, 'Kitchen testing': 15, 'Shower testing': 15,
+        'Toilet testing': 15, 'Basins': 15, 'Baths': 15, 'Toilets': 15, 'Showers': 15,
+        'Kitchen sink': 60, 'Floor drains': 60, 'Dishwasher points': 45, 'Dishwasher trap connection': 20,
+        'Washing machine points': 45, 'Floor drain': 45,
+        'Strip-out': 120, 'Report': 15, 'Basic report': 15,
+        'Maintenance report': 15, 'Recommendations': 15, 'Repair recommendations': 15,
+        'Final commissioning report': 30, 'Preventative maintenance report': 20,
+        'Preventative repairs': 60, 'Before and after photos': 15, 'Final inspection': 20,
+        'Final connections': 30, 'Final repair quotation': 30, 'Permanent repair quotation': 30,
+        'After-hours surcharge': 0, 'Call-out fee': 60, 'Commission': 30, 'Commissioning': 30,
+        'Finishing': 30, 'New cold-water pipework': 120,
+            'New hot-water pipework': 120, 'New waste pipework': 90, 'Cold-water pipework': 90,
+            'Hot-water pipework': 90, 'Waste pipework': 90,
+
+            /* remaining tail */
+            'Cabinet reinstatement': 45, 'Clean filter': 20, 'Clean system': 45, 'Clean trap': 30,
+            'Clean water': 20, 'Install tap': 30, 'Leak detection if required': 60,
+            'Manhole inspection': 20, 'Prepare installation area': 30, 'Record meter reading': 10,
+            'Remove damaged plumbing': 45, 'Remove hose': 15, 'Remove taps': 20,
+            'Repair water supply': 45, 'Restore supply': 10, 'Silicone': 15, 'Silicone sealing': 15,
+            'Temporary pipe repair': 30, 'Temporary repair': 30, 'Waste connection': 25,
+            'Water connection': 25
+        };
+const taskMinutes = JSON.parse(localStorage.getItem('pipewise-task-minutes') || '{}');
+const storedTaskMinutes = { ...DEFAULT_TASK_MINUTES, ...taskMinutes };
+
+/* Case/whitespace-insensitive lookup, so 'Install Toilet' still finds a time. */
+const taskMinuteIndex = {};
+Object.entries(storedTaskMinutes).forEach(([name, minutes]) => { taskMinuteIndex[name.trim().toLowerCase()] = Number(minutes) || 0; });
+
+function minutesForTask(task) {
+    if (!task) return 0;
+    const key = String(task).trim().toLowerCase();
+    if (key in taskMinuteIndex) return taskMinuteIndex[key];
+    /* Fall back on a keyword, so an unlisted task is not silently free. */
+    const guesses = [
+        [/excavat|trench|dig /, 180],
+        [/jackhammer|break.*concrete|cut concrete/, 120],
+        [/cctv|camera/, 60],
+        [/jetting|jet /, 90],
+        [/unblock|rod|snake|blockage/, 60],
+        [/geyser/, 60],
+        [/install/, 45],
+        [/remove|strip|disconnect|dismantle/, 30],
+        [/replace/, 45],
+        [/connect|coupl/, 20],
+        [/test|check|inspect|flush/, 20],
+        [/seal|silicone|level/, 15],
+        [/clean|rubble|debris|waste/, 20],
+        [/supply|collect|deliver/, 20]
+    ];
+    const match = guesses.find(([pattern]) => pattern.test(key));
+    return match ? match[1] : 30;
+}
+
+/*
+   Minutes <-> days <-> hours. A day is 7 working hours, so this is the one
+   place the conversion happens and everything else asks these helpers.
+*/
+function minutesToHours(minutes) { return Math.round((Math.max(0, Number(minutes) || 0) / 60) * 100) / 100; }
+function hoursToMinutes(hours) { return Math.round((Math.max(0, Number(hours) || 0)) * 60); }
+
+/*
+   Working days as a decimal: 840 minutes is 2, 210 minutes is 0.5.
+   Round to 2dp so half-days and quarter-days read cleanly.
+*/
+function minutesToWorkingDays(minutes) {
+    const value = Math.max(0, Number(minutes) || 0) / WORKING_MINUTES_PER_DAY;
+    return Math.round(value * 100) / 100;
+}
+
+function workingDaysToMinutes(days) {
+    return Math.round((Math.max(0, Number(days) || 0) * WORKING_MINUTES_PER_DAY));
+}
+
+/*
+   "1 d 4 h" / "3 h 30 m" - the label under the day box, so a typed 1.5
+   reads back as "1 d 3 h 30 m" and there is no doubt what it means.
+*/
+function describeDays(minutes) {
+    const total = Math.max(0, Math.round(Number(minutes) || 0));
+    if (!total) return '-';
+    const days = Math.floor(total / WORKING_MINUTES_PER_DAY);
+    const rest = total % WORKING_MINUTES_PER_DAY;
+    const hours = Math.floor(rest / 60);
+    const mins = rest % 60;
+    const parts = [];
+    if (days) parts.push(`${days} d`);
+    if (hours) parts.push(`${hours} h`);
+    /* Show the leftover minutes too, or a 7h30m task would read as "1 d". */
+    if (mins) parts.push(`${mins} m`);
+    return parts.join(' ');
+}
+
+function taskDuration(item) {
+    /*
+       Priority: a duration typed on the row, then a day count the user typed
+       for this task, then the time table for the task name.
+
+       daysOverridden matters. The day box is populated for display, so
+       accepting any non-zero `days` would switch the source of truth to a
+       2dp-rounded figure and shift the task's time by up to 2 minutes. The
+       flag means only a day count the user actually entered takes over.
+    */
+    const explicit = Number(item && item.duration);
+    if (explicit > 0) return explicit;
+    if (item && item.daysOverridden) {
+        const days = Number(item.days);
+        if (days > 0) return workingDaysToMinutes(days);
+    }
+    return minutesForTask(item && item.task) * Math.max(1, Number(item && item.quantity) || 1);
+}
+
+/*
+   The day count a task implies. Calculated, not stored - so a task is always
+   described by its duration, and the days figure can never drift out of step
+   with the minutes it represents.
+*/
+function taskDays(item) { return minutesToWorkingDays(taskDuration(item)); }
+
+/* ---- date maths ----
+   A working day is 8 hours. Weekends are skipped, so a long job does not
+   appear to finish on a Sunday. Dates are handled as local time to avoid
+   the off-by-one that UTC parsing causes in South Africa (UTC+2).
+*/
+/* A plumbing day on site is 7 hours, not 8. One working day is therefore
+   420 minutes, and every duration, finish date and day count derives from
+   this single number. */
+const WORKING_HOURS_PER_DAY = 7;
+const WORKING_MINUTES_PER_DAY = WORKING_HOURS_PER_DAY * 60;
+
+function parseLocalDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return isNaN(date.getTime()) ? null : date;
+}
+
+function formatLocalDate(date) {
+    if (!date) return '';
+    const pad = number => String(number).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function isWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
+
+/*
+   Working minutes between two dates, weekends excluded. The count is
+   inclusive of both days: Mon to Mon is one working day, Mon to Tue is two.
+   This is the reverse of addWorkingMinutes, so a start and finish that the
+   user types produce the duration rather than the other way round.
+*/
+function workingMinutesBetween(startValue, endValue) {
+    const start = parseLocalDate(startValue);
+    const end = parseLocalDate(endValue);
+    if (!start || !end) return 0;
+    /* If the dates are the wrong way round, read them the sensible way. */
+    const from = start <= end ? start : end;
+    const to = start <= end ? end : start;
+    let workingDays = 0;
+    const cursor = new Date(from.getTime());
+    const guard = 1000;
+    let steps = 0;
+    while (cursor <= to && steps < guard) {
+        if (!isWeekend(cursor)) workingDays++;
+        cursor.setDate(cursor.getDate() + 1);
+        steps++;
+    }
+    return workingDays * WORKING_MINUTES_PER_DAY;
+}
+
+/*
+   Add working minutes to a start date and return the finish date.
+   A task that runs past a working day rolls into the next working day; the
+   remainder is carried, so 10 hours of work starting Monday ends Tuesday.
+*/
+function addWorkingMinutes(startValue, minutes) {
+    const start = parseLocalDate(startValue);
+    if (!start) return '';
+    let remaining = Math.max(0, Number(minutes) || 0);
+    const date = new Date(start.getTime());
+    /* Anything under a day simply lands on the start date. */
+    while (remaining > WORKING_MINUTES_PER_DAY) {
+        remaining -= WORKING_MINUTES_PER_DAY;
+        date.setDate(date.getDate() + 1);
+        while (isWeekend(date)) date.setDate(date.getDate() + 1);
+    }
+    return formatLocalDate(date);
+}
+
+/* Working days a duration spans, so 240 min reads as "1 day", 480 as "2 days". */
+function workingDaysFor(minutes) {
+    const total = Math.max(0, Number(minutes) || 0);
+    if (!total) return 0;
+    return Math.max(1, Math.ceil(total / WORKING_MINUTES_PER_DAY));
+}
+
+/* "2 d 3 h", "5 h 30 m", "45 m" - short form for dense table cells. */
+function formatDuration(minutes) {
+    const total = Math.max(0, Math.round(Number(minutes) || 0));
+    if (!total) return '-';
+    const days = Math.floor(total / WORKING_MINUTES_PER_DAY);
+    const hours = Math.floor((total % WORKING_MINUTES_PER_DAY) / 60);
+    const mins = total % 60;
+    const parts = [];
+    if (days) parts.push(`${days} d`);
+    if (hours) parts.push(`${hours} h`);
+    if (mins && !days) parts.push(`${mins} m`);
+    return parts.join(' ') || '-';
 }
 
 function newProject() {
@@ -1136,7 +1580,7 @@ function newProject() {
     projects.unshift(project);
     loadedProjectIndex = 0;
     persistProjects();
-    renderProjects();
+    if (planningView !== 'single') setPlanningView('single'); else renderProjects();
     $('project-name').focus();
     showToast('New project started. Give it a name, then add tasks.');
 }
@@ -1194,41 +1638,167 @@ function collectPlanningList() {
         source: row.dataset.source || 'Manual',
         task: row.querySelector('.planning-task').value.trim(),
         quantity: Math.max(1, Number(row.querySelector('.planning-quantity').value) || 1),
+        /* Time is stored in minutes - the single source of truth. The day
+           box is a view of it, so nothing here can drift from the minutes. */
+        duration: row.dataset.overridden === 'true'
+            ? workingDaysToMinutes(row.querySelector('.planning-days').value)
+            : (Number(row.dataset.minutes) || 0),
+        days: Number(row.querySelector('.planning-days').value) || 0,
+        daysOverridden: row.dataset.overridden === 'true',
         quoteId: row.querySelector('.planning-quote').value.trim(),
         start: row.querySelector('.planning-start').value,
+        /* Whether the user set the start or auto-schedule calculated it - see
+           autoScheduleItems. Kept on the row so it survives a re-render. */
+        startPinned: row.dataset.startPinned === 'true',
         finish: row.querySelector('.planning-finish').value,
         owner: row.querySelector('.planning-owner').value.trim(),
         stage: row.querySelector('.planning-stage').value
-    })).filter(item => item.task || item.owner || item.start || item.finish);
+    }));
+    /*
+       A completely empty row is dropped, but only if EVERY field is blank -
+       including time. Keeping rows that hold just a date or a time matters
+       because a half-filled plan must survive a re-render.
+    */
+    project.items = project.items.filter(item => item.task || item.owner || item.start || item.finish || item.duration);
 }
 
-/* Quote items -> planned tasks. Labour is listed per line item, materials
-   and services are summarised into one procurement item each, which is
-   how they are actually ordered and carried to site. */
+/*
+   The order work actually happens on site. Quote items arrive in whatever
+   order they were quoted, which is rarely the order they are done - a plan
+   that lists "clean up" before "dig trench" is no use to anybody.
+
+   Lower sorts earlier. Anything unmatched lands in the middle, since
+   plumbing work sits between access and restoration.
+*/
+const WORK_SEQUENCE = [
+    [/call-out|callout|inspection|inspect|site visit|assessment/i, 10],
+    [/leak detection|locate|diagnos|trace|cctv|camera|survey/i, 20],
+    [/isolate|shut off|shut-off|drain (the )?geyser|make safe|disconnect/i, 30],
+    [/strip|remove|demolish|break|cut out|excavat|dig|trench|chase|core drill/i, 40],
+    [/supply|collect|order|deliver|procure/i, 45],
+    [/lay pipe|install pipe|new pipework|install drain|sewer pipe|pipework/i, 50],
+    [/install|fit|connect|mount|assembly|erect/i, 60],
+    [/repair|replace|fix|refit|reconnect/i, 70],
+    [/wire|electric|prime|commission|charging|pressure test/i, 80],
+    [/test|check|flush|verify|balance|calibrat/i, 90],
+    [/backfill|compact|reinstate|reinstatement|plaster|tile|paving|concrete|make good|seal|silicone/i, 100],
+    [/clean|clear away|remove rubble|debris|dispose|cart away|site tidy/i, 110],
+    [/report|certificate|handover|sign off|photograph|invoice/i, 120]
+];
+
+function workOrder(task, fallbackIndex) {
+    const name = String(task || '');
+    for (const [pattern, rank] of WORK_SEQUENCE) {
+        if (pattern.test(name)) return rank;
+    }
+    return 65 + fallbackIndex / 1000;
+}
+
+/*
+   Put a whole task list into the order the work is actually done, keeping the
+   current position as the tie-break so tasks that rank the same keep the order
+   they were added in. Mutates and returns the array.
+*/
+function sequenceItems(items) {
+    return items
+        .map((item, index) => ({ item, rank: workOrder(item.task, index), index }))
+        .sort((a, b) => (a.rank - b.rank) || (a.index - b.index))
+        .map(entry => entry.item);
+}
+
+/*
+   Auto-schedule: chain every task so the next one starts the working day after
+   the last one finishes. The project's start date (or the first task's own date)
+   is the anchor. Durations already come from the time table, so the whole plan
+   is derived - the user only supplies the day they start on site.
+
+   A task keeps a start the user typed; everything else follows on. Empty
+   rows with no time are skipped rather than blocking the chain.
+*/
+function autoScheduleItems(items, anchorStart) {
+    let cursor = anchorStart || '';
+    items.forEach(item => {
+        const minutes = taskDuration(item);
+        /*
+           A start the user typed is a fixture the chain has to honour - the
+           crew is on site that day whatever the maths says. A start this
+           function wrote on a previous run is NOT a fixture: it is a result,
+           and treating it as one would re-anchor every task back to its own
+           last calculated date and quietly break the chain.
+        */
+        if (item.startPinned && item.start) cursor = item.start;
+        if (!cursor || !minutes) return;
+        item.start = cursor;
+        item.finish = addWorkingMinutes(cursor, minutes);
+        /* The next task starts the day after this one finishes, skipping the
+           weekend, so the chain never lands work on a Saturday. */
+        cursor = addWorkingMinutes(item.finish, WORKING_MINUTES_PER_DAY + 1);
+    });
+    return items;
+}
+
+/*
+   One button does the whole plan: put the tasks in site order, then chain the
+   dates from the project start. This is what makes the plan "automated" -
+   the schedule is calculated, not typed.
+*/
+function autoPlanProject() {
+    if (loadedProjectIndex === null || !projects[loadedProjectIndex]) { showToast('Open a project first'); return; }
+    collectPlanningList();
+    const project = projects[loadedProjectIndex];
+    Object.assign(project, collectProjectForm());
+    const anchor = project.start || $('project-start').value || new Date().toISOString().slice(0, 10);
+    project.items = sequenceItems(project.items);
+    autoScheduleItems(project.items, anchor);
+    const span = projectSpan(project);
+    project.start = anchor;
+    project.end = span.last || '';
+    persistProjects();
+    renderProjects();
+    showToast(`Plan sequenced and scheduled from ${anchor}`);
+}
+
+/* Quote items -> planned tasks, sorted into the order the work happens.
+   Labour is listed per line item, materials and services are summarised
+   into one procurement item each, which is how they are actually ordered
+   and carried to site. */
 function tasksFromQuote(quote) {
     const source = quote.id || 'Saved quote';
     const labour = quote.labour && quote.labour.items ? quote.labour.items : [];
-    const labourTasks = labour.map(item => ({
-        ...emptyPlanningTask('Quote labour'),
-        task: item.description || 'Labour',
-        quantity: Number(item.quantity) || 1,
-        quoteId: source
-    }));
+    const labourTasks = labour.map(item => {
+        const quantity = Number(item.quantity) || 1;
+        /* Labour is quoted in days, so a day means a working day here. */
+        const perUnit = /day/i.test(item.unit || '') ? WORKING_MINUTES_PER_DAY : minutesForTask(item.description);
+        return {
+            ...emptyPlanningTask('Quote labour'),
+            task: item.description || 'Labour',
+            quantity,
+            duration: perUnit * Math.max(1, quantity),
+            quoteId: source
+        };
+    });
     const materials = Array.isArray(quote.materials) ? quote.materials : [];
     const materialTasks = materials.length ? [{
         ...emptyPlanningTask('Quote materials'),
         task: `${materials.length} material item${materials.length === 1 ? '' : 's'} to order and deliver`,
         quantity: materials.length,
+        duration: minutesForTask('Materials procurement'),
         quoteId: source
     }] : [];
     const services = Array.isArray(quote.services) ? quote.services : [];
-    const serviceTasks = services.map(service => ({
-        ...emptyPlanningTask('Quote service'),
-        task: service.task || 'Site work',
-        quantity: Number(service.quantity) || 1,
-        quoteId: source
-    }));
-    return [...labourTasks, ...materialTasks, ...serviceTasks];
+    const serviceTasks = services.map(service => {
+        const quantity = Number(service.quantity) || 1;
+        return {
+            ...emptyPlanningTask('Quote service'),
+            task: service.task || 'Site work',
+            quantity,
+            duration: minutesForTask(service.task) * Math.max(1, quantity),
+            quoteId: source
+        };
+    });
+    /* Sort into site order, keeping the original position as the tie-break so
+       tasks with the same rank stay in the order they were quoted. */
+    return sequenceItems([...labourTasks, ...materialTasks, ...serviceTasks]);
 }
 
 function addQuoteItemsToProject() {
@@ -1248,12 +1818,21 @@ function addQuoteItemsToProject() {
     const project = projects[loadedProjectIndex];
     Object.assign(project, collectProjectForm());
     project.items.push(...tasks);
+    /* Re-sequence the WHOLE list, not just the new items, so an added quote
+       slots into the right place among tasks already on the plan. Then chain
+       the dates so the schedule stays continuous. */
+    project.items = sequenceItems(project.items);
+    const anchor = project.start || new Date().toISOString().slice(0, 10);
+    autoScheduleItems(project.items, anchor);
+    const span = projectSpan(project);
+    project.start = anchor;
+    project.end = span.last || '';
     /* Fill the blanks from the quote - the project's own values win. */
     if (!project.customer && quote.customer && quote.customer.name) project.customer = quote.customer.name;
     if (!project.address && quote.customer && quote.customer.address) project.address = quote.customer.address;
     persistProjects();
     renderProjects();
-    showToast(`${tasks.length} item${tasks.length === 1 ? '' : 's'} added from ${quote.id}`);
+    showToast(`${tasks.length} item${tasks.length === 1 ? '' : 's'} added from ${quote.id} and sequenced`);
 }
 
 function planningQuoteOptions(selectedQuoteId) {
@@ -1265,6 +1844,161 @@ function stageOptions(selected, source) {
     return `<select class="planning-stage" aria-label="Stage for ${escapeHtml(source)} task">${PROJECT_STAGES.map(stage => `<option ${stage === selected ? 'selected' : ''}>${stage}</option>`).join('')}</select>`;
 }
 
+let planningView = 'overview';
+let timelineProjectIndex = 0;
+
+function setPlanningView(view) {
+    planningView = ['single', 'timeline'].includes(view) ? view : 'overview';
+    document.querySelectorAll('.planning-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.planningView === planningView));
+    $('planning-overview').hidden = planningView !== 'overview';
+    $('planning-single').hidden = planningView !== 'single';
+    $('planning-timeline').hidden = planningView !== 'timeline';
+    if (planningView === 'single' && loadedProjectIndex === null && projects.length) loadedProjectIndex = 0;
+    if (planningView === 'timeline' && !projects[timelineProjectIndex]) timelineProjectIndex = 0;
+    renderProjects();
+    if (planningView === 'timeline') renderTimeline();
+}
+
+/* ============================ TIMELINE ============================
+   A Gantt-style view: one row per task, a bar per task placed by its
+   start-to-finish span, on a day grid. Weekends are shaded so a bar that
+   spans one is obviously straddling the break.
+
+   The point of putting tasks side by side is to SEE OVERLAP. Tasks that
+   run over the same dates and share an owner are flagged as a clash,
+   because that usually means one crew has been double-booked.
+*/
+
+function dayCountBetween(startValue, endValue) {
+    const a = parseLocalDate(startValue);
+    const b = parseLocalDate(endValue);
+    if (!a || !b) return 0;
+    return Math.round((b - a) / 86400000);
+}
+
+function addCalendarDays(value, days) {
+    const date = parseLocalDate(value);
+    if (!date) return '';
+    date.setDate(date.getDate() + days);
+    return formatLocalDate(date);
+}
+
+/* Every calendar day from the first start to the last finish, inclusive. */
+function timelineDays(project) {
+    const span = projectSpan(project);
+    if (!span.first || !span.last) return [];
+    const days = [];
+    let cursor = span.first;
+    const guard = 400;
+    for (let i = 0; i < guard && cursor && cursor <= span.last; i++) {
+        days.push(cursor);
+        cursor = addCalendarDays(cursor, 1);
+    }
+    return days;
+}
+
+/*
+   A bar's day span, as an offset from the project's first day and a length
+   in days. The offset must be measured against the timeline's own first day,
+   not the task's own start, or every bar lands at zero and the whole chart
+   collapses into a single column.
+*/
+function taskSpan(item, timelineStart) {
+    const start = item.start;
+    if (!start) return null;
+    const finish = item.finish || autoFinish(item) || start;
+    const offset = Math.max(0, dayCountBetween(timelineStart, start));
+    const length = Math.max(1, dayCountBetween(start, finish) + 1);
+    return { start, finish, offset, length };
+}
+
+function renderTimeline() {
+    const select = $('timeline-project-select');
+    const project = projects[timelineProjectIndex];
+    select.innerHTML = projects.length
+        ? projects.map((p, index) => `<option value="${index}" ${index === timelineProjectIndex ? 'selected' : ''}>${escapeHtml(p.id)} - ${escapeHtml(p.name || 'Untitled project')}</option>`).join('')
+        : '<option value="">No projects yet</option>';
+
+    const grid = $('timeline-grid');
+    const conflicts = $('timeline-conflicts');
+    const items = project && Array.isArray(project.items) ? project.items : [];
+    const span = projectSpan(project);
+    const dated = items.map(item => ({ item, span: taskSpan(item, span.first) })).filter(entry => entry.span);
+
+    if (!project || !dated.length) {
+        grid.innerHTML = '';
+        conflicts.innerHTML = '';
+        $('timeline-empty').hidden = false;
+        $('timeline-empty').textContent = !projects.length
+            ? 'No projects yet. Create one to plan the work.'
+            : 'Add a start date to this project\'s tasks to see the timeline.';
+        return;
+    }
+    $('timeline-empty').hidden = true;
+
+    const days = timelineDays(project);
+    /* Sort by start so the chart reads top-to-bottom in time order. */
+    dated.sort((a, b) => (a.span.start < b.span.start ? -1 : a.span.start > b.span.start ? 1 : 0));
+
+    /* Conflict pass: overlapping dates that share an owner. */
+    const clashes = [];
+    for (let i = 0; i < dated.length; i++) {
+        for (let j = i + 1; j < dated.length; j++) {
+            const a = dated[i], b = dated[j];
+            if (!a.item.owner || !b.item.owner) continue;
+            if (a.item.owner.toLowerCase() !== b.item.owner.toLowerCase()) continue;
+            const aEnd = a.span.finish, bEnd = b.span.finish;
+            if (a.span.start <= bEnd && b.span.start <= aEnd) {
+                clashes.push({ owner: a.item.owner, a: a.item.task, b: b.item.task, from: a.span.start > b.span.start ? a.span.start : b.span.start, to: aEnd < bEnd ? aEnd : bEnd });
+            }
+        }
+    }
+    conflicts.innerHTML = clashes.length
+        ? `<div class="timeline-conflict-title">${clashes.length} clash${clashes.length === 1 ? '' : 'es'} - the same person is on two tasks at once</div>` +
+          clashes.map(c => `<div class="timeline-conflict"><strong>${escapeHtml(c.owner)}</strong> ${escapeHtml(c.a)} <span>overlaps</span> ${escapeHtml(c.b)} <small>(${escapeHtml(c.from)} to ${escapeHtml(c.to)})</small></div>`).join('')
+        : (items.some(item => item.owner) ? '<div class="timeline-ok">No clashing assignments.</div>' : '');
+
+    const dayWidth = 34;
+    const labelWidth = 220;
+    const totalWidth = labelWidth + days.length * dayWidth;
+
+    /* Header: month labels and day numbers. */
+    let header = '<div class="timeline-row timeline-header">';
+    header += `<div class="timeline-label timeline-corner" style="width:${labelWidth}px">Task</div>`;
+    header += `<div class="timeline-track" style="width:${days.length * dayWidth}px">`;
+    days.forEach(day => {
+        const date = parseLocalDate(day);
+        const weekend = isWeekend(date);
+        header += `<div class="timeline-day${weekend ? ' is-weekend' : ''}" style="width:${dayWidth}px"><span>${date.getDate()}</span><small>${date.toLocaleDateString('en-ZA', { month: 'short' })}</small></div>`;
+    });
+    header += '</div></div>';
+
+    /* Rows: label + bar. */
+    const rows = dated.map((entry, index) => {
+        const item = entry.item;
+        const span = entry.span;
+        const stageKey = String(item.stage || 'Not started').toLowerCase().replace(/\s+/g, '');
+        const minutes = taskDuration(item);
+        let track = '<div class="timeline-track">';
+        days.forEach(day => {
+            const date = parseLocalDate(day);
+            track += `<div class="timeline-cell${isWeekend(date) ? ' is-weekend' : ''}" style="width:${dayWidth}px"></div>`;
+        });
+        /* The bar is absolutely positioned inside the track. */
+        track += `<div class="timeline-bar stage-${escapeHtml(stageKey)}" style="left:${span.offset * dayWidth + 2}px;width:${span.length * dayWidth - 4}px" title="${escapeHtml(item.task || 'Task')}: ${escapeHtml(span.start)} to ${escapeHtml(span.finish)} (${formatDuration(minutes)})"><span>${escapeHtml(item.task || 'Task')}</span></div>`;
+        track += '</div>';
+        return `<div class="timeline-row" data-index="${index}">
+            <div class="timeline-label" style="width:${labelWidth}px">
+                <strong>${escapeHtml(item.task || 'Task')}</strong>
+                <small>${escapeHtml(span.start)} &rarr; ${escapeHtml(span.finish)} · ${formatDuration(minutes)}${item.owner ? ' · ' + escapeHtml(item.owner) : ''}</small>
+            </div>
+            ${track}
+        </div>`;
+    }).join('');
+
+    grid.innerHTML = `<div class="timeline-inner" style="min-width:${totalWidth}px">${header}${rows}</div>`;
+}
+
 function renderProjects() {
     const select = $('planning-project-select');
     select.innerHTML = projects.length
@@ -1273,7 +2007,60 @@ function renderProjects() {
     if (loadedProjectIndex !== null && projects[loadedProjectIndex]) select.value = String(loadedProjectIndex);
     $('planning-count').textContent = projects.length;
     $('planning-quote-select').innerHTML = planningQuoteOptions('');
+    renderPlanningOverview();
     renderPlanningProject();
+    if (planningView === 'timeline') renderTimeline();
+}
+
+function statusLabel(status) { return PROJECT_STATUS_LABELS[status] || 'Planning'; }
+
+function renderPlanningOverview() {
+    const list = $('planning-overview-list');
+    const totals = $('planning-overview-totals');
+    if (!projects.length) {
+        list.innerHTML = '';
+        totals.innerHTML = '';
+        $('planning-overview-empty').hidden = false;
+        return;
+    }
+    $('planning-overview-empty').hidden = true;
+
+    list.innerHTML = projects.map((project, index) => {
+        const items = Array.isArray(project.items) ? project.items : [];
+        const minutes = projectTotalMinutes(project);
+        const span = projectSpan(project);
+        const done = items.filter(item => item.stage === 'Done').length;
+        const percent = items.length ? Math.round((done / items.length) * 100) : 0;
+        return `
+        <div class="planning-overview-row${index === loadedProjectIndex ? ' is-open' : ''}" data-project-index="${index}">
+            <span class="overview-project"><strong>${escapeHtml(project.name || 'Untitled project')}</strong><small>${escapeHtml(project.id)}</small></span>
+            <span>${escapeHtml(project.customer || '-')}</span>
+            <span><b class="overview-status status-${escapeHtml(project.status || 'planning')}">${escapeHtml(statusLabel(project.status))}</b></span>
+            <span>${escapeHtml(project.start || span.first || '-')}</span>
+            <span>${escapeHtml(project.end || span.last || '-')}</span>
+            <span>${items.length}</span>
+            <span>${formatDuration(minutes)}</span>
+            <span>${minutesToWorkingDays(minutes) || 0}</span>
+            <span>${done}/${items.length} (${percent}%)</span>
+            <button class="overview-open" type="button" data-open-project="${index}">Open</button>
+        </div>`;
+    }).join('');
+
+    /* Portfolio totals - what the whole book of work looks like. */
+    const allMinutes = projects.reduce((sum, project) => sum + projectTotalMinutes(project), 0);
+    const active = projects.filter(project => project.status !== 'complete').length;
+    const taskCount = projects.reduce((sum, project) => sum + (Array.isArray(project.items) ? project.items.length : 0), 0);
+    totals.innerHTML = `
+        <div><span>Projects</span><strong>${projects.length}</strong></div>
+        <div><span>Active</span><strong>${active}</strong></div>
+        <div><span>Total tasks</span><strong>${taskCount}</strong></div>
+        <div><span>Total work</span><strong>${formatDuration(allMinutes)}</strong></div>
+        <div><span>Working days</span><strong>${minutesToWorkingDays(allMinutes) || 0}</strong></div>`;
+
+    document.querySelectorAll('[data-open-project]').forEach(button => button.addEventListener('click', () => {
+        switchPlanningProject(Number(button.dataset.openProject));
+        setPlanningView('single');
+    }));
 }
 
 function renderPlanningProject() {
@@ -1304,19 +2091,45 @@ function renderPlanningProject() {
 function renderPlanningList() {
     const project = loadedProjectIndex !== null ? projects[loadedProjectIndex] : null;
     const items = project && Array.isArray(project.items) ? project.items : [];
-    $('planning-list').innerHTML = items.map((item, index) => `
-        <div class="planning-row" data-index="${index}" data-source="${escapeHtml(item.source || 'Manual')}">
+    $('planning-list').innerHTML = items.map((item, index) => {
+        const minutes = taskDuration(item);
+        const days = minutesToWorkingDays(minutes);
+        const finish = autoFinish(item);
+        const last = index === items.length - 1;
+        return `
+        <div class="planning-row" data-index="${index}" data-source="${escapeHtml(item.source || 'Manual')}" data-minutes="${minutes}" data-overridden="${item.daysOverridden ? 'true' : 'false'}" data-start-pinned="${item.startPinned ? 'true' : 'false'}">
+            <span class="planning-order">
+                <span class="planning-seq">${index + 1}</span>
+                <button class="planning-move move-up" type="button" data-move="up" data-index="${index}" aria-label="Move task ${index + 1} up" title="Move up" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
+                <button class="planning-move move-down" type="button" data-move="down" data-index="${index}" aria-label="Move task ${index + 1} down" title="Move down" ${last ? 'disabled' : ''}>&darr;</button>
+            </span>
             <span class="planning-source">${escapeHtml(item.source || 'Manual')}</span>
             <input class="planning-task" type="text" value="${escapeHtml(item.task || '')}" placeholder="What needs doing" aria-label="Task ${index + 1}">
             <input class="planning-quantity" type="number" min="1" step="1" value="${Math.max(1, Number(item.quantity) || 1)}" aria-label="Quantity for task ${index + 1}">
             <input class="planning-quote" type="text" value="${escapeHtml(item.quoteId || '')}" placeholder="Quote ref" aria-label="Quote reference for task ${index + 1}">
             <input class="planning-start" type="date" value="${escapeHtml(item.start || '')}" aria-label="Start date for task ${index + 1}">
-            <input class="planning-finish" type="date" value="${escapeHtml(item.finish || '')}" aria-label="Finish date for task ${index + 1}">
+            <input class="planning-days" type="number" min="0" step="0.5" value="${days || ''}" placeholder="auto" aria-label="Working days for task ${index + 1}" title="Working days at ${WORKING_HOURS_PER_DAY} hours a day. Leave blank to use the time for this task from the price list.">
+            <span class="planning-duration-label" title="${minutes} minutes">${describeDays(minutes)}</span>
+            <input class="planning-finish" type="date" value="${escapeHtml(item.finish || finish || '')}" aria-label="Finish date for task ${index + 1}" title="Calculated from the start date and duration">
             <input class="planning-owner" type="text" value="${escapeHtml(item.owner || '')}" placeholder="Who / crew" aria-label="Owner for task ${index + 1}">
             ${stageOptions(item.stage || 'Not started', item.task || 'task')}
             <button class="remove-material planning-remove" type="button" aria-label="Remove task ${index + 1}">×</button>
-        </div>`).join('');
+        </div>`;
+    }).join('');
     $('planning-empty').hidden = items.length > 0;
+    /* Reordering swaps two adjacent items, so the plan reads in the order the
+       work will actually happen. */
+    document.querySelectorAll('.planning-move').forEach(button => button.addEventListener('click', () => {
+        const index = Number(button.dataset.index);
+        const target = button.dataset.move === 'up' ? index - 1 : index + 1;
+        const items2 = projects[loadedProjectIndex].items;
+        if (target < 0 || target >= items2.length) return;
+        collectPlanningList();
+        const list = projects[loadedProjectIndex].items;
+        [list[index], list[target]] = [list[target], list[index]];
+        persistProjects();
+        renderPlanningList();
+    }));
     document.querySelectorAll('.planning-remove').forEach(button => button.addEventListener('click', () => {
         collectPlanningList();
         projects[loadedProjectIndex].items.splice(Number(button.closest('.planning-row').dataset.index), 1);
@@ -1324,12 +2137,95 @@ function renderPlanningList() {
         renderPlanningList();
         renderPlanningProgress();
     }));
-    document.querySelectorAll('#planning-list input, #planning-list select').forEach(input => input.addEventListener('change', () => {
+    /*
+       Editing a field updates the stored row and the derived cells IN PLACE.
+       A full re-render here would rebuild every row from stored state and
+       throw away edits made to other rows in the same pass.
+    */
+    document.querySelectorAll('#planning-list input, #planning-list select').forEach(input => input.addEventListener('change', event => {
+        const row = event.target.closest('.planning-row');
+        if (!row || loadedProjectIndex === null) return;
+        const index = Number(row.dataset.index);
+        const item = projects[loadedProjectIndex].items[index];
+        if (!item) return;
+        const className = event.target.className;
+
         collectPlanningList();
+
+        const daysField = row.querySelector('.planning-days');
+        const startField = row.querySelector('.planning-start');
+        const finishField = row.querySelector('.planning-finish');
+
+        /*
+           Dates and time work BOTH ways, and the pair the user gave last is
+           the one that wins:
+
+             start + days    -> finish is calculated forwards
+             start + finish  -> days is calculated backwards from the dates
+           Typing in the day box is an explicit override; clearing it hands
+           control back to the time table.
+        */
+        const typedFinish = className === 'planning-finish' && finishField.value;
+        if (typedFinish) {
+            /* Dates given, so the span between them is the time. */
+            item.start = startField.value;
+            item.finish = finishField.value;
+            item.duration = workingMinutesBetween(startField.value, finishField.value);
+            item.daysOverridden = true;
+            row.dataset.overridden = 'true';
+        } else if (className === 'planning-start') {
+            /* A start date on its own just moves the task. If a finish date is
+               already there, the two dates still govern the duration. */
+            item.start = startField.value;
+            /* Typing a start pins it, so auto-plan chains around it instead of
+               moving the task back. Clearing it unpins. */
+            item.startPinned = Boolean(startField.value);
+            row.dataset.startPinned = item.startPinned ? 'true' : 'false';
+            if (finishField.value) {
+                item.duration = workingMinutesBetween(startField.value, finishField.value);
+            } else if (startField.value && taskDuration(item)) {
+                item.finish = addWorkingMinutes(startField.value, taskDuration(item));
+            }
+            item.daysOverridden = true;
+            row.dataset.overridden = 'true';
+        } else if (className === 'planning-days') {
+            item.daysOverridden = Number(daysField.value) > 0;
+            row.dataset.overridden = item.daysOverridden ? 'true' : 'false';
+        } else if (['planning-task', 'planning-quantity'].includes(className)) {
+            /* A task or quantity change re-derives from the table, dropping
+               any earlier override so the two figures cannot disagree. */
+            item.duration = minutesForTask(item.task) * Math.max(1, Number(item.quantity) || 1);
+            item.daysOverridden = false;
+            row.dataset.overridden = 'false';
+        }
+
+        /* Repaint the derived cells: the day box, the plain label and the
+           finish date are all views of the task's minutes. */
+        const minutes = taskDuration(item);
+        row.dataset.minutes = minutes;
+        daysField.value = minutesToWorkingDays(minutes) || '';
+        row.querySelector('.planning-duration-label').textContent = describeDays(minutes);
+        if (item.start && minutes) {
+            const calculated = addWorkingMinutes(item.start, minutes);
+            /* Only overwrite the finish when the user has not set one. */
+            if (!finishField.value) finishField.value = calculated;
+            item.finish = finishField.value;
+        } else {
+            item.finish = finishField.value;
+        }
+
         persistProjects();
         renderPlanningProgress();
     }));
     renderPlanningProgress();
+}
+
+/* The finish a duration implies, used when the user has not set one. */
+function autoFinish(item) {
+    const minutes = taskDuration(item);
+    if (!item || !item.start || !minutes) return '';
+    /* A finish typed by the user beats one calculated from the duration. */
+    return item.finish || addWorkingMinutes(item.start, minutes);
 }
 
 function renderPlanningProgress() {
@@ -1341,16 +2237,49 @@ function renderPlanningProgress() {
     const blocked = items.filter(item => item.stage === 'Blocked').length;
     const scheduled = items.filter(item => item.start || item.finish).length;
     const percent = Math.round((done / items.length) * 100);
+    const totalMinutes = projectTotalMinutes(project);
+    const span = projectSpan(project);
     container.innerHTML = `
         <div class="planning-progress-top">
             <span><strong>${done}</strong> of <strong>${items.length}</strong> tasks done (${percent}%)</span>
             <span>${scheduled} scheduled${blocked ? ` · <b class="planning-warn">${blocked} blocked</b>` : ''}</span>
         </div>
-        <div class="planning-bar"><span style="width: ${percent}%"></span></div>`;
+        <div class="planning-bar"><span style="width: ${percent}%"></span></div>
+        <div class="planning-totals">
+            <div><span>Total work</span><strong>${formatDuration(totalMinutes)}</strong></div>
+            <div><span>Working days</span><strong>${minutesToWorkingDays(totalMinutes) || 0}</strong></div>
+            <div><span>At ${WORKING_HOURS_PER_DAY} h / day</span><strong>${totalMinutes ? describeDays(totalMinutes) : '-'}</strong></div>
+            <div><span>Start</span><strong>${span.first || '-'}</strong></div>
+            <div><span>Est. finish</span><strong>${span.last || '-'}</strong></div>
+            <div><span>Calendar span</span><strong>${span.calendarDays ? span.calendarDays + ' days' : '-'}</strong></div>
+        </div>`;
+}
+
+/* Total planned minutes for a project. */
+function projectTotalMinutes(project) {
+    const items = project && Array.isArray(project.items) ? project.items : [];
+    return items.reduce((sum, item) => sum + taskDuration(item), 0);
+}
+
+/*
+   When a project runs, from the earliest start to the latest finish.
+   Worst case across tasks, since tasks may overlap rather than queue.
+*/
+function projectSpan(project) {
+    const items = project && Array.isArray(project.items) ? project.items : [];
+    const starts = items.map(item => item.start).filter(Boolean).sort();
+    const finishes = items.map(item => item.finish || autoFinish(item)).filter(Boolean).sort();
+    const first = starts[0] || '';
+    const last = finishes[finishes.length - 1] || '';
+    let calendarDays = 0;
+    const a = parseLocalDate(first);
+    const b = parseLocalDate(last);
+    if (a && b) calendarDays = Math.round((b - a) / 86400000) + 1;
+    return { first, last, calendarDays };
 }
 
 function switchPlanningProject(index) {
-    if (loadedProjectIndex !== null && projects[loadedProjectIndex]) {
+    if (loadedProjectIndex !== null && projects[loadedProjectIndex] && !$('planning-single').hidden) {
         collectPlanningList();
         Object.assign(projects[loadedProjectIndex], collectProjectForm());
     }
@@ -1406,18 +2335,27 @@ initCloud().then(() => {
     if (currentUser) return pullSettingsAndPrices();
 });
 /* ---- project planning controls ---- */
+document.querySelectorAll('.planning-tab').forEach(tab => tab.addEventListener('click', () => setPlanningView(tab.dataset.planningView)));
 $('new-project').addEventListener('click', newProject);
 $('save-project').addEventListener('click', saveProject);
 $('add-quote-items').addEventListener('click', addQuoteItemsToProject);
+$('auto-plan-project').addEventListener('click', autoPlanProject);
 $('add-planning-task').addEventListener('click', () => {
     if (loadedProjectIndex === null) { showToast('Create or open a project first'); return; }
     collectPlanningList();
+    /*
+       Append without sequencing. The new row is blank, so it has no place in
+       the work order yet - sorting it now would move it away from the cursor
+       and the user would type into whatever task happened to land last. Type
+       the task, then Auto-plan puts it where it belongs along with the rest.
+    */
     projects[loadedProjectIndex].items.push(emptyPlanningTask());
     persistProjects();
     renderPlanningList();
-    document.querySelector('#planning-list .planning-row:last-child .planning-task')?.focus();
+    $$('#planning-list .planning-row .planning-task').pop()?.focus();
 });
 $('planning-project-select').addEventListener('change', event => switchPlanningProject(Number(event.target.value)));
+$('timeline-project-select').addEventListener('change', event => { timelineProjectIndex = Number(event.target.value) || 0; renderTimeline(); });
 $('new-quote-button').addEventListener('click', () => { resetForm(); switchView('new-quote'); });
 $('check-prices-button').addEventListener('click', runPriceCheck);
 $('price-list-file-page').addEventListener('change', importPriceList);
@@ -1427,5 +2365,5 @@ $('add-price').addEventListener('click', () => { const row = document.createElem
 $('save-settings').addEventListener('click', () => { settings = { name: $('company-name').value.trim(), phone: $('company-phone').value.trim(), email: $('company-email').value.trim(), preparedBy: $('prepared-by').value.trim(), taxNumber: $('tax-number').value.trim(), vatRate: getNumber('vat-rate') }; localStorage.setItem('pipewise-settings', JSON.stringify(settings)); loadSettings(); calculate(); showToast('Company settings saved'); pushSettingsAndPrices(true); });
 loadSettings(); resetForm(); renderSavedQuotes(); renderPriceList(); updatePriceCheckStatus();
 if (projects.length) loadedProjectIndex = 0;
-renderProjects();
+setPlanningView('overview');
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(() => { });

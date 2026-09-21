@@ -1,5 +1,5 @@
 /* Bump this whenever a cached file changes, or phones keep the old copy. */
-const CACHE_NAME = 'aps-v9';
+const CACHE_NAME = 'aps-v10';
 const APP_FILES = [
     './',
     './index.html',
@@ -32,41 +32,55 @@ self.addEventListener('activate', event => {
     );
 });
 
+/*
+   STALE-WHILE-REVALIDATE
+   This used to be cache-first, which meant a phone that had already loaded
+   the app kept running old JavaScript no matter how often the cache name was
+   bumped - the new copy only arrived on a later visit, and edits could appear
+   to have no effect at all.
+
+   Now the cached file is served immediately, so the app still opens instantly
+   and works offline, but a fresh copy is fetched in the background and stored
+   for the NEXT load. A code change therefore reaches every device by the
+   second open instead of never.
+*/
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') {
+        return;
+    }
+
+    /* Only same-origin app files are cached; leave CDN requests alone. */
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) {
         return;
     }
 
     event.respondWith(
         caches.match(event.request)
             .then(cachedResponse => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-
-                return fetch(event.request)
+                const networkUpdate = fetch(event.request)
                     .then(networkResponse => {
                         if (
-                            !networkResponse ||
-                            networkResponse.status !== 200 ||
-                            networkResponse.type === 'opaque'
+                            networkResponse &&
+                            networkResponse.status === 200 &&
+                            networkResponse.type !== 'opaque'
                         ) {
-                            return networkResponse;
+                            return caches.open(CACHE_NAME)
+                                .then(cache => {
+                                    cache.put(event.request, networkResponse.clone());
+                                    return networkResponse;
+                                });
                         }
 
-                        return caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(
-                                    event.request,
-                                    networkResponse.clone()
-                                );
-
-                                return networkResponse;
-                            });
+                        return networkResponse;
                     })
                     .catch(() => {
-                        return caches.match('./index.html');
+                        /* Offline: fall back to whatever we already have. */
+                        return cachedResponse || caches.match('./index.html');
                     });
+
+                /* Serve the cache straight away when we have it. */
+                return cachedResponse || networkUpdate;
             })
     );
 });

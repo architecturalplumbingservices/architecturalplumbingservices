@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/jpeg" href="APClogo.jpg">
     <link rel="apple-touch-icon" href="APClogo.jpg">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=3">
 
     <title>Pipewise Quote Calculator</title>
 </head>
@@ -1463,8 +1463,8 @@
 
                         <p class="view-note">
                             Create a project, pull in the items from a saved
-                            quote, then plan the work with dates,
-                            responsibility and progress.
+                            quote, then hit Auto-plan to put the tasks in the
+                            order the work happens and work out the dates for you.
                         </p>
 
                     </div>
@@ -1483,7 +1483,101 @@
 
                 </div>
 
-                <!-- PROJECT SWITCHER -->
+                <!-- VIEW TOGGLE -->
+
+                <div class="planning-view-toggle" role="tablist" aria-label="Planning view">
+
+                    <button class="planning-tab active" data-planning-view="overview" role="tab" type="button">
+                        All projects
+                    </button>
+
+                    <button class="planning-tab" data-planning-view="single" role="tab" type="button">
+                        One project
+                    </button>
+
+                    <button class="planning-tab" data-planning-view="timeline" role="tab" type="button">
+                        Timeline
+                    </button>
+
+                </div>
+
+                <!-- =========================================
+                     TIMELINE: TASKS AS BARS OVER TIME
+                     ========================================= -->
+
+                <div class="planning-timeline" id="planning-timeline" hidden>
+
+                    <div class="timeline-toolbar">
+
+                        <label class="field timeline-project-select">
+
+                            <span>
+                                Project
+                            </span>
+
+                            <select id="timeline-project-select" aria-label="Project to show on the timeline"></select>
+
+                        </label>
+
+                        <div class="timeline-legend">
+
+                            <span class="timeline-key key-notstarted">Not started</span>
+                            <span class="timeline-key key-inprogress">In progress</span>
+                            <span class="timeline-key key-done">Done</span>
+                            <span class="timeline-key key-blocked">Blocked</span>
+
+                        </div>
+
+                    </div>
+
+                    <div class="timeline-conflicts" id="timeline-conflicts"></div>
+
+                    <div class="timeline-scroll" id="timeline-scroll">
+
+                        <div class="timeline-grid" id="timeline-grid"></div>
+
+                    </div>
+
+                    <div class="material-empty" id="timeline-empty">
+                        Add dates to this project's tasks to see the timeline.
+                    </div>
+
+                </div>
+
+                <!-- =========================================
+                     OVERVIEW: EVERY PROJECT ON ONE SCREEN
+                     ========================================= -->
+
+                <div class="planning-overview" id="planning-overview">
+
+                    <div class="planning-overview-totals" id="planning-overview-totals"></div>
+
+                    <div class="planning-headings overview-headings" aria-hidden="true">
+                        <span>Project</span>
+                        <span>Customer</span>
+                        <span>Status</span>
+                        <span>Start</span>
+                        <span>Est. finish</span>
+                        <span>Tasks</span>
+                        <span>Work</span>
+                        <span>Days</span>
+                        <span>Done</span>
+                        <span></span>
+                    </div>
+
+                    <div class="planning-overview-list" id="planning-overview-list"></div>
+
+                    <div class="material-empty" id="planning-overview-empty">
+                        No projects yet. Create one to start planning.
+                    </div>
+
+                </div>
+
+                <!-- =========================================
+                     SINGLE PROJECT
+                     ========================================= -->
+
+                <div class="planning-single" id="planning-single" hidden>
 
                 <div class="planning-toolbar">
 
@@ -1515,6 +1609,11 @@
 
                         <button class="secondary-button compact" id="add-planning-task" type="button">
                             + Add task
+                        </button>
+
+                        <button class="primary-button compact" id="auto-plan-project" type="button"
+                            title="Put every task in the order the work happens and chain the dates from the project start">
+                            Auto-plan the work
                         </button>
 
                     </div>
@@ -1617,6 +1716,8 @@
                     <span>Qty</span>
                     <span>Linked quote</span>
                     <span>Start</span>
+                    <span>Days</span>
+                    <span>Time</span>
                     <span>Finish</span>
                     <span>Owner / crew</span>
                     <span>Stage</span>
@@ -1628,6 +1729,8 @@
                 <div class="material-empty" id="planning-empty">
                     Create a project, then add quote items or a task to
                     plan the work.
+                </div>
+
                 </div>
 
             </section>
@@ -1759,8 +1862,8 @@
          database. It contains no secrets — see the notes in that file.
          ========================================================= -->
 
-    <script src="config.js?v=2"></script>
-    <script src="app.js?v=2"></script>
+    <script src="config.js?v=3"></script>
+    <script src="app.js?v=3"></script>
 
 
     <!-- =========================================================
