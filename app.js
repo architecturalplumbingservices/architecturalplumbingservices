@@ -1528,11 +1528,19 @@ function workingMinutesBetween(startValue, endValue) {
 function addWorkingMinutes(startValue, minutes) {
     const start = parseLocalDate(startValue);
     if (!start) return '';
-    let remaining = Math.max(0, Number(minutes) || 0);
+    /*
+       Work is planned in whole working days, so a task finishes on the last
+       day it occupies and never part-way through one. The day count comes from
+       workingDaysFor() rather than being worked out again here, so the finish
+       date and the "days" figure in the row can never disagree.
+
+       This used to roll over only when the work EXCEED a day, so 1 day +
+       1 minute finished a day later than exactly 1 day - one stray minute
+       costing a whole extra day on site.
+    */
+    const days = workingDaysFor(minutes);
     const date = new Date(start.getTime());
-    /* Anything under a day simply lands on the start date. */
-    while (remaining > WORKING_MINUTES_PER_DAY) {
-        remaining -= WORKING_MINUTES_PER_DAY;
+    for (let i = 1; i < days; i++) {
         date.setDate(date.getDate() + 1);
         while (isWeekend(date)) date.setDate(date.getDate() + 1);
     }
@@ -1717,16 +1725,34 @@ function sequenceItems(items) {
 }
 
 /*
-   Auto-schedule: chain every task so the next one starts the working day after
-   the last one finishes. The project's start date (or the first task's own date)
-   is the anchor. Durations already come from the time table, so the whole plan
-   is derived - the user only supplies the day they start on site.
+   Auto-schedule: fill each working day before starting the next one.
 
-   A task keeps a start the user typed; everything else follows on. Empty
-   rows with no time are skipped rather than blocking the chain.
+   A day holds WORKING_MINUTES_PER_DAY (7 hours) of work. Tasks run
+   back-to-back into the SAME day until it is full, then the next task starts
+   on the following working day. A task that needs more than a day occupies
+   whole days, so it finishes on the last day it uses.
+
+   This replaced a rule that gave every task a whole day to itself and rolled
+   the cursor on unconditionally. Five short jobs - a call-out, an install, a
+   clean-up - are five hours of work between them and belong on ONE day, but
+   were being spread across five, which made a day's work look like a week's.
+
+   The project's start date (or the first task's own date) is the anchor, so the
+   user still only supplies the day they start on site.
 */
 function autoScheduleItems(items, anchorStart) {
-    let cursor = anchorStart || '';
+    /*
+       One cursor: `day` is the day the next task starts on, and `left` is the
+       room remaining on it. A task is placed on `day` if it fits in `left`;
+       otherwise `day` moves to the next working day first.
+
+       After placing a task, the cursor becomes that task's FINISH day, and
+       `left` becomes what is still free there - which is what lets a short job
+       follow a long one onto the same day, and what stops a second task being
+       stacked onto a day an over-long job has already swallowed whole.
+    */
+    let day = anchorStart || '';
+    let left = WORKING_MINUTES_PER_DAY;
     items.forEach(item => {
         const minutes = taskDuration(item);
         /*
@@ -1736,15 +1762,50 @@ function autoScheduleItems(items, anchorStart) {
            and treating it as one would re-anchor every task back to its own
            last calculated date and quietly break the chain.
         */
-        if (item.startPinned && item.start) cursor = item.start;
-        if (!cursor || !minutes) return;
-        item.start = cursor;
-        item.finish = addWorkingMinutes(cursor, minutes);
-        /* The next task starts the day after this one finishes, skipping the
-           weekend, so the chain never lands work on a Saturday. */
-        cursor = addWorkingMinutes(item.finish, WORKING_MINUTES_PER_DAY + 1);
+        if (item.startPinned && item.start) {
+            day = item.start;
+            left = WORKING_MINUTES_PER_DAY;
+        }
+        if (!day || !minutes) return;
+        /*
+           Start the next working day when this task will not fit in what is
+           left of the current one.
+
+           `left < WORKING_MINUTES_PER_DAY` is what keeps an over-long job on
+           the day it reached: a 12-hour task against a completely empty day
+           starts there and runs over, rather than being pushed to tomorrow for
+           being bigger than a day - which would leave today with nothing on it
+           and start every long job a day late.
+        */
+        if (left <= 0 || (minutes > left && left < WORKING_MINUTES_PER_DAY)) {
+            day = nextWorkingDay(day);
+            left = WORKING_MINUTES_PER_DAY;
+        }
+        item.start = day;
+        item.finish = addWorkingMinutes(day, minutes);
+        /*
+           Move the cursor to the finish day and work out what is left on it.
+           Whole days consumed are 420 each, so a 900-minute job finishes with
+           480 - 420 = 60 minutes of that day still free.
+        */
+        const whole = Math.floor(minutes / WORKING_MINUTES_PER_DAY);
+        const over = minutes % WORKING_MINUTES_PER_DAY;
+        if (whole) {
+            day = item.finish;
+            left = over ? WORKING_MINUTES_PER_DAY - over : 0;
+        } else {
+            left -= minutes;
+        }
     });
     return items;
+}
+
+/* The next day that is not a weekend - a Saturday never becomes a start date. */
+function nextWorkingDay(value) {
+    const date = parseLocalDate(value);
+    if (!date) return '';
+    do { date.setDate(date.getDate() + 1); } while (isWeekend(date));
+    return formatLocalDate(date);
 }
 
 /*

@@ -39,6 +39,19 @@ export default async function run(page, ui) {
     await page.waitForTimeout(80);
   }
 
+  /*
+     A task's real working minutes, read from the row's own time figure rather
+     than inferred from its dates. The dates only say WHICH days a task covers,
+     not how much of each is used - a 20-minute clean-up and a 4-hour dig both
+     start and finish on the same day, so dates alone cannot tell a full day
+     from a near-empty one.
+
+     The row stores its minutes in data-minutes, which is what the app itself
+     schedules against.
+  */
+  const readMinutes = () => page.locator('#planning-list .planning-row')
+    .evaluateAll(rows => rows.map(r => Number(r.dataset.minutes) || 0));
+
   const beforeOrder = await page.locator('#planning-list .planning-task').evaluateAll(els => els.map(e => e.value));
   const beforeDates = await page.locator('#planning-list .planning-start').evaluateAll(els => els.map(e => e.value));
 
@@ -48,6 +61,7 @@ export default async function run(page, ui) {
 
   const afterOrder = await page.locator('#planning-list .planning-task').evaluateAll(els => els.map(e => e.value));
   const afterStarts = await page.locator('#planning-list .planning-start').evaluateAll(els => els.map(e => e.value));
+  const afterMinutes = await readMinutes();
   const afterFinishes = await page.locator('#planning-list .planning-finish').evaluateAll(els => els.map(e => e.value));
   const projectEnd = await page.locator('#project-end').inputValue();
 
@@ -91,7 +105,25 @@ export default async function run(page, ui) {
     reordered: JSON.stringify(beforeOrder) !== JSON.stringify(afterOrder),
     firstStartIsAnchor: afterStarts[0] === '2026-03-02',
     allDated: afterStarts.every(Boolean) && afterFinishes.every(Boolean),
-    chained: afterStarts.every((s, i) => i === 0 || s > afterFinishes[i - 1]),
+    // No task starts before the one it follows has finished. Same-day sharing
+    // is expected now, so this is "not before", not "strictly after".
+    sequenceHolds: afterStarts.every((s, i) => i === 0 || s >= afterFinishes[i - 1]),
+    // Every day holds at most a full working day of work. 7 hours is 420
+    // minutes, the same limit autoScheduleItems packs against.
+    //
+    // Day load is the sum of the real task durations placed on that day, not
+    // the span between the outer dates - see readMinutes above.
+    daysUsed: afterStarts.reduce((days, start) => days.includes(start) ? days : [...days, start], []),
+    dayLoads: afterStarts.reduce((load, start, i) => {
+      load[start] = (load[start] || 0) + afterMinutes[i];
+      return load;
+    }, {}),
+    noDayOverloaded: Object.values(
+      afterStarts.reduce((load, start, i) => {
+        load[start] = (load[start] || 0) + afterMinutes[i];
+        return load;
+      }, {})
+    ).every(mins => mins <= 420),
     endMatchesLastFinish: projectEnd === afterFinishes[afterFinishes.length - 1],
     rerunStarts,
     rerunFinishes,
