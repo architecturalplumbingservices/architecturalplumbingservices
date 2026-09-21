@@ -1,5 +1,5 @@
 /* Bump this whenever a cached file changes, or phones keep the old copy. */
-const CACHE_NAME = 'aps-v8';
+const CACHE_NAME = 'aps-v9';
 const APP_FILES = [
     './',
     './index.html',
