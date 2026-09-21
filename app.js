@@ -1670,10 +1670,22 @@ function collectPlanningList() {
    Lower sorts earlier. Anything unmatched lands in the middle, since
    plumbing work sits between access and restoration.
 */
+/*
+   Order matters: the FIRST matching pattern wins, so a specific rule has to be
+   tested before a broad one that would otherwise swallow it. "Backfill trench"
+   and "Remove rubble" both contain "trench"/"remove", so with the excavation
+   rule first they ranked 40 - before the pipe was even laid - and the plan put
+   the clean-up ahead of the work. The late-stage rules therefore sit above the
+   broad excavation rule, not after it.
+*/
 const WORK_SEQUENCE = [
     [/call-out|callout|inspection|inspect|site visit|assessment/i, 10],
     [/leak detection|locate|diagnos|trace|cctv|camera|survey/i, 20],
     [/isolate|shut off|shut-off|drain (the )?geyser|make safe|disconnect/i, 30],
+    /* Restoration and clean-up are later stages, but read as demolition -
+       tested early so the broad patterns below cannot claim them. */
+    [/backfill|compact|reinstate|reinstatement|plaster|tile|paving|concrete|make good|seal|silicone/i, 100],
+    [/clean|clear away|remove rubble|debris|dispose|cart away|site tidy/i, 110],
     [/strip|remove|demolish|break|cut out|excavat|dig|trench|chase|core drill/i, 40],
     [/supply|collect|order|deliver|procure/i, 45],
     [/lay pipe|install pipe|new pipework|install drain|sewer pipe|pipework/i, 50],
@@ -1681,8 +1693,6 @@ const WORK_SEQUENCE = [
     [/repair|replace|fix|refit|reconnect/i, 70],
     [/wire|electric|prime|commission|charging|pressure test/i, 80],
     [/test|check|flush|verify|balance|calibrat/i, 90],
-    [/backfill|compact|reinstate|reinstatement|plaster|tile|paving|concrete|make good|seal|silicone/i, 100],
-    [/clean|clear away|remove rubble|debris|dispose|cart away|site tidy/i, 110],
     [/report|certificate|handover|sign off|photograph|invoice/i, 120]
 ];
 

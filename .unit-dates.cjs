@@ -8,17 +8,25 @@ function extract(a, b) {
     return src.slice(i, src.indexOf(b, i));
 }
 
-/* Non-overlapping ranges: each block stops before the next begins. */
-const coreBlock = extract('const WORKING_HOURS_PER_DAY', 'const DEFAULT_TASK_MINUTES = {');
-const helpersBlock = extract('function minutesToHours', 'const WORK_SEQUENCE = [');
-const tableBlock = extract('const DEFAULT_TASK_MINUTES = {', 'const WORK_SEQUENCE = [');
+/*
+   Non-overlapping ranges, taken straight out of app.js rather than
+   duplicated here, so the test cannot drift from the code it tests.
+
+   Each block stops before the next begins, or a `const` would be declared
+   twice and the sandbox would throw before a single check ran. The order in
+   app.js is: the minutes table, the conversion helpers, the date maths, then
+   the work sequence.
+*/
+const tableBlock = extract('const DEFAULT_TASK_MINUTES = {', 'function minutesToHours');
+const helpersBlock = extract('function minutesToHours', 'const WORKING_HOURS_PER_DAY');
+const dateBlock = extract('const WORKING_HOURS_PER_DAY', 'const WORK_SEQUENCE = [');
 const orderBlock = extract('const WORK_SEQUENCE = [', 'function tasksFromQuote');
 
 const sandbox = `
 const localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
-${dateBlock}
 ${tableBlock}
-${taskMinutesBlock}
+${helpersBlock}
+${dateBlock}
 ${orderBlock}
 return { addWorkingMinutes, workingMinutesBetween, formatDuration, describeDays,
          minutesToWorkingDays, workingDaysToMinutes, minutesForTask, taskDuration, taskDays,
