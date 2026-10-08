@@ -127,30 +127,38 @@ configure a real SMTP provider.
 In the dashboard: **Project Settings** → **API**. You need two values.
 
 1. **Project URL** — looks like `https://abcdefghijklm.supabase.co`
-2. **anon / public** key — the long `eyJ...` string labelled
-   *public*.
+2. **public** key — either the newer `sb_publishable_...` key or the
+   older `anon` key (the long `eyJ...` string labelled *public*).
+   Both are safe to publish and are interchangeable.
 
 Open `config.js` in this repo and fill in both:
 
 ```js
 window.APS_CLOUD_FUNCTION_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/cloud";
-window.APS_SUPABASE_ANON_KEY   = "eyJ...your anon key...";
+window.APS_SUPABASE_ANON_KEY   = "sb_publishable_... or eyJ...";
 ```
+
+The name `APS_SUPABASE_ANON_KEY` is kept from before Supabase renamed
+its keys. You may also use `APS_SUPABASE_PUBLISHABLE_KEY`; the app
+reads either.
 
 > ### Read this before pasting the key
 >
 > `config.js` is served to every visitor. It is safe to put the
-> **anon** key there — it identifies the project, it does not grant
-> access, and every request it makes is still checked against the
-> signed-in user.
+> **public** key there — whether that is an `sb_publishable_...` key
+> or an older `anon` key. It identifies the project, it does not
+> grant access, and every request it makes is still checked against
+> the signed-in user.
 >
 > **Never paste the `service_role` key, or anything starting
 > `sb_secret_`.** Those bypass every security rule in `schema.sql` and
 > would hand your entire quote history to anyone who opens View
 > Source.
 >
-> If you are unsure which key you have: the anon key is labelled
-> **anon** / **public** in the dashboard. When in doubt, stop and ask.
+> If you are unsure which key you have: public keys are labelled
+> **publishable** or **anon** / **public** in the dashboard, and the
+> ones to avoid are labelled **secret** or **service_role**. When in
+> doubt, stop and ask.
 
 Then commit and push. GitHub Pages redeploys automatically.
 
@@ -186,7 +194,7 @@ signed in, not falling back to local-only.
 | What | Where |
 |------|-------|
 | Staff passwords | Supabase Authentication. Never in this repo. |
-| The anon key (public) | `config.js` — safe to publish |
+| The public key (publishable or anon) | `config.js` — safe to publish |
 | Quotes, settings, price list | Supabase `public` schema tables |
 | A signed-in session token | The device's `localStorage`, under `pipewise-session` |
 | Unsent quotes | The device's `localStorage`, under `pipewise-outbox` |
@@ -202,7 +210,7 @@ anywhere in this repository.
 |------|------|
 | `supabase/schema.sql` | Tables, row-level security, seed data |
 | `supabase/functions/cloud/index.ts` | The backend the app calls |
-| `config.js` | Function URL + anon key. No secrets. |
+| `config.js` | Function URL + public key. No secrets. |
 | `app.js` → `CLOUD SYNC` section | Sign-in, push, pull, outbox |
 | `app.js` → `CLOUD SYNC` › Push/Pull | The sync logic itself |
 

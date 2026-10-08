@@ -1561,157 +1561,157 @@
 
                 <div class="planning-single" id="planning-single" hidden>
 
-                <div class="planning-toolbar">
+                    <div class="planning-toolbar">
 
-                    <label class="field planning-project-select">
-
-                        <span>
-                            Project
-                        </span>
-
-                        <select id="planning-project-select" aria-label="Project to plan"></select>
-
-                    </label>
-
-                    <div class="planning-actions">
-
-                        <label class="field planning-quote-select">
+                        <label class="field planning-project-select">
 
                             <span>
-                                Pull items from saved quote
+                                Project
                             </span>
 
-                            <select id="planning-quote-select" aria-label="Saved quote to pull items from"></select>
+                            <select id="planning-project-select" aria-label="Project to plan"></select>
 
                         </label>
 
-                        <button class="secondary-button compact" id="add-quote-items" type="button">
-                            Add quote items
-                        </button>
+                        <div class="planning-actions">
 
-                        <button class="secondary-button compact" id="add-planning-task" type="button">
-                            + Add task
-                        </button>
+                            <label class="field planning-quote-select">
 
-                        <button class="primary-button compact" id="auto-plan-project" type="button"
-                            title="Put every task in the order the work happens and chain the dates from the project start">
-                            Auto-plan the work
-                        </button>
+                                <span>
+                                    Pull items from saved quote
+                                </span>
+
+                                <select id="planning-quote-select" aria-label="Saved quote to pull items from"></select>
+
+                            </label>
+
+                            <button class="secondary-button compact" id="add-quote-items" type="button">
+                                Add quote items
+                            </button>
+
+                            <button class="secondary-button compact" id="add-planning-task" type="button">
+                                + Add task
+                            </button>
+
+                            <button class="primary-button compact" id="auto-plan-project" type="button"
+                                title="Put every task in the order the work happens and chain the dates from the project start">
+                                Auto-plan the work
+                            </button>
+
+                        </div>
 
                     </div>
 
-                </div>
+                    <!-- PROJECT DETAILS -->
 
-                <!-- PROJECT DETAILS -->
+                    <div class="settings-panel planning-details">
 
-                <div class="settings-panel planning-details">
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Project name
+                            </span>
 
-                        <span>
-                            Project name
-                        </span>
+                            <input id="project-name" type="text" maxlength="120"
+                                placeholder="e.g. Bathroom renovation - Mokoena">
 
-                        <input id="project-name" type="text" maxlength="120"
-                            placeholder="e.g. Bathroom renovation - Mokoena">
+                        </label>
 
-                    </label>
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Customer
+                            </span>
 
-                        <span>
-                            Customer
-                        </span>
+                            <input id="project-customer" type="text" maxlength="120" placeholder="e.g. Thandi Mokoena">
 
-                        <input id="project-customer" type="text" maxlength="120" placeholder="e.g. Thandi Mokoena">
+                        </label>
 
-                    </label>
+                        <label class="field field-wide">
 
-                    <label class="field field-wide">
+                            <span>
+                                Site address
+                            </span>
 
-                        <span>
-                            Site address
-                        </span>
+                            <input id="project-address" type="text" maxlength="200"
+                                placeholder="Street address, suburb, city">
 
-                        <input id="project-address" type="text" maxlength="200"
-                            placeholder="Street address, suburb, city">
+                        </label>
 
-                    </label>
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Start date
+                            </span>
 
-                        <span>
-                            Start date
-                        </span>
+                            <input id="project-start" type="date">
 
-                        <input id="project-start" type="date">
+                        </label>
 
-                    </label>
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Target completion
+                            </span>
 
-                        <span>
-                            Target completion
-                        </span>
+                            <input id="project-end" type="date">
 
-                        <input id="project-end" type="date">
+                        </label>
 
-                    </label>
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Status
+                            </span>
 
-                        <span>
-                            Status
-                        </span>
+                            <select id="project-status" aria-label="Project status">
+                                <option value="planning">Planning</option>
+                                <option value="scheduled">Scheduled</option>
+                                <option value="in-progress">In progress</option>
+                                <option value="on-hold">On hold</option>
+                                <option value="complete">Complete</option>
+                            </select>
 
-                        <select id="project-status" aria-label="Project status">
-                            <option value="planning">Planning</option>
-                            <option value="scheduled">Scheduled</option>
-                            <option value="in-progress">In progress</option>
-                            <option value="on-hold">On hold</option>
-                            <option value="complete">Complete</option>
-                        </select>
+                        </label>
 
-                    </label>
+                        <label class="field">
 
-                    <label class="field">
+                            <span>
+                                Lead / assigned to
+                            </span>
 
-                        <span>
-                            Lead / assigned to
-                        </span>
+                            <input id="project-lead" type="text" maxlength="80" placeholder="e.g. Sipho">
 
-                        <input id="project-lead" type="text" maxlength="80" placeholder="e.g. Sipho">
+                        </label>
 
-                    </label>
+                    </div>
 
-                </div>
+                    <!-- PROGRESS -->
 
-                <!-- PROGRESS -->
+                    <div class="planning-progress" id="planning-progress"></div>
 
-                <div class="planning-progress" id="planning-progress"></div>
+                    <!-- PLANNING HEADINGS -->
 
-                <!-- PLANNING HEADINGS -->
+                    <div class="planning-headings" aria-hidden="true">
+                        <span>Source</span>
+                        <span>Task</span>
+                        <span>Qty</span>
+                        <span>Linked quote</span>
+                        <span>Start</span>
+                        <span>Days</span>
+                        <span>Time</span>
+                        <span>Finish</span>
+                        <span>Owner / crew</span>
+                        <span>Stage</span>
+                        <span></span>
+                    </div>
 
-                <div class="planning-headings" aria-hidden="true">
-                    <span>Source</span>
-                    <span>Task</span>
-                    <span>Qty</span>
-                    <span>Linked quote</span>
-                    <span>Start</span>
-                    <span>Days</span>
-                    <span>Time</span>
-                    <span>Finish</span>
-                    <span>Owner / crew</span>
-                    <span>Stage</span>
-                    <span></span>
-                </div>
+                    <div class="planning-list" id="planning-list"></div>
 
-                <div class="planning-list" id="planning-list"></div>
-
-                <div class="material-empty" id="planning-empty">
-                    Create a project, then add quote items or a task to
-                    plan the work.
-                </div>
+                    <div class="material-empty" id="planning-empty">
+                        Create a project, then add quote items or a task to
+                        plan the work.
+                    </div>
 
                 </div>
 
@@ -1760,70 +1760,68 @@
 
             </div>
 
-            </form>
+        </form>
 
-        </dialog>
+    </dialog>
 
-        <!-- =========================================================
+    <!-- =========================================================
              CLOUD SIGN-IN DIALOG
              ========================================================= -->
 
-        <dialog class="scenario-dialog" id="cloud-dialog" aria-labelledby="cloud-dialog-title">
+    <dialog class="scenario-dialog" id="cloud-dialog" aria-labelledby="cloud-dialog-title">
 
-            <form id="cloud-form">
+        <form id="cloud-form">
 
-                <h2 id="cloud-dialog-title">
+            <h2 id="cloud-dialog-title">
+                Sign in
+            </h2>
+
+            <p class="cloud-dialog-note">
+                Sign in to share quotes, company details and the price
+                list with everyone else using this app. You can keep
+                quoting without signing in — everything is saved on
+                this device either way.
+            </p>
+
+            <label class="field">
+
+                <span>
+                    Email address
+                </span>
+
+                <input id="cloud-email" type="email" autocomplete="username" placeholder="you@example.co.za">
+
+            </label>
+
+            <label class="field">
+
+                <span>
+                    Password
+                </span>
+
+                <input id="cloud-password" type="password" autocomplete="current-password" placeholder="Your password">
+
+            </label>
+
+            <p class="cloud-dialog-status" id="cloud-dialog-status" role="status"></p>
+
+            <div class="scenario-dialog-actions">
+
+                <button class="secondary-button compact" type="button" id="cloud-cancel">
+                    Cancel
+                </button>
+
+                <button class="primary-button compact" type="submit" id="cloud-submit">
                     Sign in
-                </h2>
+                </button>
 
-                <p class="cloud-dialog-note">
-                    Sign in to share quotes, company details and the price
-                    list with everyone else using this app. You can keep
-                    quoting without signing in — everything is saved on
-                    this device either way.
-                </p>
+            </div>
 
-                <label class="field">
+        </form>
 
-                    <span>
-                        Email address
-                    </span>
+    </dialog>
 
-                    <input id="cloud-email" type="email" autocomplete="username"
-                        placeholder="you@example.co.za">
-
-                </label>
-
-                <label class="field">
-
-                    <span>
-                        Password
-                    </span>
-
-                    <input id="cloud-password" type="password" autocomplete="current-password"
-                        placeholder="Your password">
-
-                </label>
-
-                <p class="cloud-dialog-status" id="cloud-dialog-status" role="status"></p>
-
-                <div class="scenario-dialog-actions">
-
-                    <button class="secondary-button compact" type="button" id="cloud-cancel">
-                        Cancel
-                    </button>
-
-                    <button class="primary-button compact" type="submit" id="cloud-submit">
-                        Sign in
-                    </button>
-
-                </div>
-
-            </form>
-
-        </dialog>
-
-        <!-- =========================================================
+    <!-- =========================================================
              TOAST
              ========================================================= -->
 
@@ -1840,12 +1838,13 @@
     <!-- =========================================================
          APS APPLICATION
          config.js loads first: it carries the cloud function URL and
-         the public anon key the app needs to reach the shared quote
-         database. It contains no secrets — see the notes in that file.
+         the public (publishable or anon) key the app needs to reach
+         the shared quote database. It contains no secrets — see the
+         notes in that file.
          ========================================================= -->
 
-    <script src="config.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="config.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 
 
     <!-- =========================================================
