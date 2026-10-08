@@ -622,7 +622,6 @@ function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = inde
 const CLOUD_FUNCTION_URL = (typeof window !== 'undefined' && window.APS_CLOUD_FUNCTION_URL) || '';
 const CLOUD_ANON_KEY = (typeof window !== 'undefined'
     && (window.APS_SUPABASE_ANON_KEY || window.APS_SUPABASE_PUBLISHABLE_KEY)) || '';
-const CLOUD_TRADE = 'aps';
 const OUTBOX_KEY = 'pipewise-outbox';
 
 let cloudAvailable = false;   /* server reachable AND we are signed in */
@@ -639,12 +638,15 @@ function updateCloudStatus(message) { const el = $('cloud-status'); if (el) el.t
    not been configured, so a half-finished setup never presents dead
    buttons to staff.
 
-   The Saved quotes header used to carry a Sign out button here. It was
-   removed, so this function now has nothing to toggle; it is kept as a
-   no-op because sign-out is still reachable from the code paths that
-   call it, and a later control can be added in one place.
+   This used to toggle a Sign out button in the Saved quotes header.
+   That button was removed from the page, which left no way to switch
+   accounts on a shared phone, so sign-out now lives inside the sign-in
+   dialog - the one place that is reachable whatever view you are on.
 */
 function updateCloudButtons() {
+    const signedIn = Boolean(currentUser);
+    const button = $('cloud-signout');
+    if (button) button.hidden = !signedIn;
 }
 
 /*
@@ -656,8 +658,7 @@ async function cloudRequest(action, options = {}) {
 
     const url = CLOUD_FUNCTION_URL
         + (CLOUD_FUNCTION_URL.includes('?') ? '&' : '?')
-        + 'action=' + encodeURIComponent(action)
-        + '&trade=' + encodeURIComponent(CLOUD_TRADE);
+        + 'action=' + encodeURIComponent(action);
 
     const headers = { 'Content-Type': 'application/json', apikey: CLOUD_ANON_KEY };
     if (currentUser && currentUser.accessToken) headers.Authorization = 'Bearer ' + currentUser.accessToken;
@@ -848,7 +849,12 @@ async function flushOutbox() {
    up here without wiping anything saved locally.
 */
 async function pullQuotes() {
-    if (!currentUser) { updateCloudStatus('Sign in first.'); return; }
+    /*
+       Silent, not an error. initCloud and the automatic sync both call
+       this, and a device that is simply not signed in should not be
+       nagged with a status line every time it starts.
+    */
+    if (!currentUser) return;
     if (cloudBusy) return;
     cloudBusy = true;
 
@@ -910,6 +916,13 @@ async function pullQuotes() {
 /*
    Company settings and the price list are shared, not per-user, so
    that two staff cannot quote the same job at different rates.
+
+   NOT WIRED UP. This is never called: editing settings writes to
+   localStorage, and the "Save settings" button does not push them to
+   the cloud. So the shared row is only ever *read* (pullSettingsAndPrices),
+   and a changed rate stays on the device that changed it. Left in place
+   as the intended implementation - calling pushSettingsAndPrices(false)
+   from the save-settings handler is what would finish it.
 */
 async function pushSettingsAndPrices(silent = true) {
     if (!cloudAvailable || !currentUser) return;
@@ -2398,6 +2411,10 @@ const cloudDialog = $('cloud-dialog');
 if (cloudDialog) {
     $('cloud-form').addEventListener('submit', submitSignIn);
     $('cloud-cancel').addEventListener('click', () => { $('cloud-dialog').close(); $('cloud-dialog-status').textContent = ''; });
+
+    /* Sign out, then close: it is done, and the dialog should not sit open. */
+    const cloudSignOut = $('cloud-signout');
+    if (cloudSignOut) cloudSignOut.addEventListener('click', () => { signOut(); cloudDialog.close(); });
 }
 
 updateCloudButtons();
