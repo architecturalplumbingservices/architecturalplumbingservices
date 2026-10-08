@@ -547,13 +547,41 @@ function updateSitePhotoPreview() { $('site-photo-preview').innerHTML = sitePhot
 function compressSitePhoto(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Photo could not be read')); reader.onload = () => { const image = new Image(); image.onerror = () => reject(new Error('Photo could not be opened')); image.onload = () => { const scale = Math.min(1, 1600 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale); canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', .82)); }; image.src = reader.result; }; reader.readAsDataURL(file); }); }
 function markQuoteAmended() { if (loadedQuoteIndex === null || isAmended) return; isAmended = true; $('quote-status').textContent = 'AMENDED'; $('amendment-panel').hidden = false; updatePrintDetails(); }
 function resetForm() { loadedQuoteIndex = null; isAmended = false; $('quote-status').textContent = 'NEW'; $('amendment-panel').hidden = true;['customer-name', 'customer-phone', 'customer-address', 'service-description', 'amendment-reason'].forEach(id => { $(id).value = ''; }); sitePhotos = []; $('site-photo').value = ''; updateSitePhotoPreview(); labourItems = defaultLabourItems(); $('vat-enabled').checked = true; materials = []; services = []; $('quote-number').textContent = nextQuoteNumber(); updateSummary(); renderLabourItems(); renderMaterials(); renderServices(); }
-function saveQuote() {
+async function saveQuote() {
     const name = $('customer-name').value.trim();
     if (!name) { $('customer-name').focus(); showToast('Add the customer name first'); return; }
+    if (!cloudConfigured()) { showToast('Cloud is not configured — quote was not saved'); return; }
+    if (!currentUser) { openSignInDialog(); return; }
+    if (!cloudAvailable) { showToast('Cloud is unavailable — quote was not saved'); return; }
     const totals = calculate();
     const quote = { id: $('quote-number').textContent, date: new Date().toISOString(), customer: { name, phone: $('customer-phone').value.trim(), address: $('customer-address').value.trim(), serviceDescription: $('service-description').value.trim(), sitePhotos }, labour: { items: labourItems.map(item => ({ ...item })) }, materials: [...materials], services: [...services], totals, amended: isAmended, amendmentReason: $('amendment-reason').value.trim() };
-    if (loadedQuoteIndex === null) quotes.unshift(quote); else quotes[loadedQuoteIndex] = quote;
-    localStorage.setItem('pipewise-quotes', JSON.stringify(quotes)); pushQuote(quote); $('quote-count').textContent = quotes.length; showToast(isAmended ? `Amended quote ${quote.id} saved` : `Quote ${quote.id} saved`); resetForm(); renderSavedQuotes();
+    const button = $('save-quote');
+    button.disabled = true;
+    try {
+        await refreshSessionIfNeeded();
+        if (!currentUser) throw new Error('Session expired — sign in again before saving.');
+        await cloudRequest('save', { method: 'POST', body: quote });
+        const existingIndex = quotes.findIndex(saved => saved.id === quote.id);
+        if (existingIndex === -1) quotes.unshift(quote); else quotes[existingIndex] = quote;
+        clearOutboxEntry(quote.id);
+        localStorage.setItem('pipewise-quotes', JSON.stringify(quotes));
+        $('quote-count').textContent = quotes.length;
+        showToast(isAmended ? `Amended quote ${quote.id} saved to cloud` : `Quote ${quote.id} saved to cloud`);
+        updateCloudStatus('Synced · ' + new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }));
+        resetForm();
+        renderSavedQuotes();
+    } catch (error) {
+        if (error.status === 401) {
+            currentUser = null;
+            cloudAvailable = false;
+            saveSession();
+            updateCloudButtons();
+            updateCloudStatus('Session expired — sign in again before saving.');
+        }
+        showToast(error.message === 'offline' ? 'Cloud unavailable — quote was not saved' : (error.message || 'Quote was not saved'));
+    } finally {
+        button.disabled = false;
+    }
 }
 function renderSavedQuotes() {
     $('quote-count').textContent = quotes.length;
@@ -589,6 +617,7 @@ function loadQuote(index) { const quote = quotes[index]; loadedQuoteIndex = inde
 */
 const CLOUD_FUNCTION_URL = (typeof window !== 'undefined' && window.APS_CLOUD_FUNCTION_URL) || '';
 const CLOUD_ANON_KEY = (typeof window !== 'undefined' && window.APS_SUPABASE_ANON_KEY) || '';
+const CLOUD_TRADE = 'aps';
 const OUTBOX_KEY = 'pipewise-outbox';
 
 let cloudAvailable = false;   /* server reachable AND we are signed in */
@@ -611,9 +640,6 @@ function updateCloudButtons() {
     const signedIn = Boolean(currentUser);
     const toggle = (id, visible) => { const el = $(id); if (el) el.hidden = !visible; };
 
-    toggle('cloud-signin-button', show && !signedIn);
-    toggle('cloud-sync-button', show && signedIn);
-    toggle('cloud-save-button', show && signedIn);
     toggle('cloud-signout-button', show && signedIn);
 }
 
@@ -624,17 +650,22 @@ function updateCloudButtons() {
 async function cloudRequest(action, options = {}) {
     if (!cloudConfigured()) throw new Error('not-configured');
 
-    const url = CLOUD_FUNCTION_URL + (CLOUD_FUNCTION_URL.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action);
+    const url = CLOUD_FUNCTION_URL
+        + (CLOUD_FUNCTION_URL.includes('?') ? '&' : '?')
+        + 'action=' + encodeURIComponent(action)
+        + '&trade=' + encodeURIComponent(CLOUD_TRADE);
 
     const headers = { 'Content-Type': 'application/json', apikey: CLOUD_ANON_KEY };
     if (currentUser && currentUser.accessToken) headers.Authorization = 'Bearer ' + currentUser.accessToken;
+
+    const requestBody = options.body;
 
     let response;
     try {
         response = await fetch(url, {
             method: options.method || 'GET',
             headers,
-            body: options.body ? JSON.stringify(options.body) : undefined
+            body: requestBody ? JSON.stringify(requestBody) : undefined
         });
     } catch {
         /* Poor signal on site is normal, not exceptional. */
@@ -749,15 +780,15 @@ async function initCloud() {
         const data = await cloudRequest('status');
         cloudAvailable = Boolean(data && data.configured);
         if (!currentUser) {
-            updateCloudStatus('Cloud is ready — sign in to share quotes between devices.');
+            updateCloudStatus('Cloud is ready — save a quote to sign in and enable automatic sync.');
         } else {
             updateCloudStatus('Signed in as ' + currentUser.email);
         }
     } catch (error) {
         cloudAvailable = false;
         updateCloudStatus(error.message === 'offline'
-            ? 'Cloud unreachable — quotes are safe on this device.'
-            : 'Cloud is not set up yet — quotes are saved on this device only.');
+            ? 'Cloud unreachable — quotes cannot be saved until it reconnects.'
+            : 'Cloud is not set up yet — quotes cannot be saved.');
     }
 
     updateCloudButtons();
@@ -802,51 +833,6 @@ async function flushOutbox() {
 /* ---------------------------------------------------------
    Push
    --------------------------------------------------------- */
-
-/*
-   Push one quote. Called after a save or delete, but never awaited
-   by the caller, so the UI stays instant.
-*/
-async function pushQuote(quote, silent = true) {
-    if (!quote || !quote.id) return;
-
-    if (!cloudAvailable || !currentUser) {
-        /*
-           Not an error — this is the expected state on site. Queue it
-           so it goes up as soon as we are next able.
-        */
-        addToOutbox(quote);
-        if (!silent && cloudConfigured() && currentUser) updateCloudStatus('Saved on this device — will sync when back online.');
-        return;
-    }
-
-    try {
-        await cloudRequest('save', { method: 'POST', body: quote });
-        clearOutboxEntry(quote.id);
-        if (!silent) showToast('Quote synced to cloud');
-        updateCloudStatus('Synced · ' + new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }));
-    } catch {
-        addToOutbox(quote);
-        if (!silent) showToast('Saved on this device — will sync later');
-    }
-}
-
-/* Kept for the call sites that pushed the whole list at once. */
-async function pushAllQuotes(silent = false) {
-    if (!cloudAvailable || !currentUser) { quotes.forEach(addToOutbox); return; }
-    let sent = 0;
-    for (const quote of quotes) {
-        if (!quote || !quote.id) continue;
-        try {
-            await cloudRequest('save', { method: 'POST', body: quote });
-            clearOutboxEntry(quote.id);
-            sent++;
-        } catch {
-            addToOutbox(quote);
-        }
-    }
-    if (!silent) showToast(sent ? sent + ' quote' + (sent === 1 ? '' : 's') + ' synced' : 'Nothing synced — check your connection');
-}
 
 /* ---------------------------------------------------------
    Pull
@@ -909,7 +895,7 @@ async function pullQuotes() {
         showToast(parts.length ? 'Cloud: ' + parts.join(', ') : 'Already up to date');
         updateCloudStatus('Synced · ' + quotes.length + ' quote' + (quotes.length === 1 ? '' : 's'));
     } catch (error) {
-        if (error.message === 'offline') showToast('No connection — quotes are safe on this device');
+        if (error.message === 'offline') showToast('No connection — quotes cannot be saved until cloud reconnects');
         else if (error.status === 401) { currentUser = null; saveSession(); updateCloudButtons(); updateCloudStatus('Session expired — please sign in again.'); }
         else showToast(error.message || 'Could not reach the cloud');
     } finally {
@@ -1046,7 +1032,7 @@ async function submitSignIn(event) {
         else showToast('Signed in as ' + currentUser.email);
     } catch (error) {
         if (status) status.textContent = error.message === 'offline'
-            ? 'No connection. You can keep working — quotes are saved on this device.'
+            ? 'No connection. Quotes can only be saved when cloud is available.'
             : error.message;
     } finally {
         button.disabled = false;
@@ -1058,42 +1044,10 @@ function signOut() {
     saveSession();
     cloudAvailable = false;
     updateCloudButtons();
-    updateCloudStatus('Signed out — quotes are saved on this device only.');
+    updateCloudStatus('Signed out — sign in to save quotes to the cloud.');
     showToast('Signed out');
 }
 // ========================= END CLOUD SYNC =========================
-
-function exportQuotes() {
-    if (!quotes.length) { showToast('No saved quotes to export'); return; }
-    const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), quotes }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `pipewise-quotes-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast(`${quotes.length} quote${quotes.length === 1 ? '' : 's'} saved to file`);
-}
-
-function importQuotes(file) {
-    const reader = new FileReader();
-    reader.onerror = () => showToast('File could not be read');
-    reader.onload = () => {
-        try {
-            const data = JSON.parse(reader.result);
-            const incoming = Array.isArray(data) ? data : data.quotes;
-            if (!Array.isArray(incoming)) throw new Error('bad format');
-            const existingIds = new Set(quotes.map(quote => quote.id));
-            const added = incoming.filter(quote => quote && quote.id && !existingIds.has(quote.id));
-            if (!added.length) { showToast('No new quotes found in file'); return; }
-            quotes = [...added, ...quotes];
-            localStorage.setItem('pipewise-quotes', JSON.stringify(quotes));
-            renderSavedQuotes();
-            showToast(`${added.length} quote${added.length === 1 ? '' : 's'} imported`);
-        } catch { showToast('That file is not a valid quotes file'); }
-    };
-    reader.readAsText(file);
-}
 
 function viewSavedQuotePdf(index) { loadQuote(index); requestAnimationFrame(() => window.print()); }
 
@@ -1594,13 +1548,16 @@ function newProject() {
 }
 
 function deleteProject() {
-    if (loadedProjectIndex === null || !projects[loadedProjectIndex]) { showToast('No project selected'); return; }
+    if (loadedProjectIndex === null || !projects[loadedProjectIndex]) { showToast('Open a project first, then delete it'); return; }
     const removing = projects[loadedProjectIndex];
+    const label = removing.name ? `${removing.id} - ${removing.name}` : removing.id;
+    /* Deleting a plan cannot be undone, so confirm before it goes. */
+    if (!window.confirm(`Delete project ${label}? This cannot be undone.`)) return;
     projects.splice(loadedProjectIndex, 1);
     loadedProjectIndex = projects.length ? 0 : null;
     persistProjects();
     renderProjects();
-    showToast(`Project ${removing.id || removing.name || ''} deleted`.trim());
+    showToast(`Project ${label} deleted`);
 }
 
 /* Reads the project header fields currently on screen. */
@@ -1916,7 +1873,8 @@ function stageOptions(selected, source) {
 }
 
 let planningView = 'overview';
-let timelineProjectIndex = 0;
+/* The timeline opens on every project; a specific index narrows it down. */
+let timelineProjectIndex = 'all';
 
 function setPlanningView(view) {
     planningView = ['single', 'timeline'].includes(view) ? view : 'overview';
@@ -1925,7 +1883,7 @@ function setPlanningView(view) {
     $('planning-single').hidden = planningView !== 'single';
     $('planning-timeline').hidden = planningView !== 'timeline';
     if (planningView === 'single' && loadedProjectIndex === null && projects.length) loadedProjectIndex = 0;
-    if (planningView === 'timeline' && !projects[timelineProjectIndex]) timelineProjectIndex = 0;
+    if (planningView === 'timeline' && timelineProjectIndex !== 'all' && !projects[timelineProjectIndex]) timelineProjectIndex = 'all';
     renderProjects();
     if (planningView === 'timeline') renderTimeline();
 }
@@ -1954,14 +1912,17 @@ function addCalendarDays(value, days) {
     return formatLocalDate(date);
 }
 
-/* Every calendar day from the first start to the last finish, inclusive. */
-function timelineDays(project) {
-    const span = projectSpan(project);
-    if (!span.first || !span.last) return [];
+/*
+   Every calendar day from the first start to the last finish, inclusive.
+   Takes a {first, last} range (from projectSpan or timelineRange), not a
+   project - the all-projects chart spans several projects at once.
+*/
+function timelineDays(range) {
+    if (!range || !range.first || !range.last) return [];
     const days = [];
-    let cursor = span.first;
+    let cursor = range.first;
     const guard = 400;
-    for (let i = 0; i < guard && cursor && cursor <= span.last; i++) {
+    for (let i = 0; i < guard && cursor && cursor <= range.last; i++) {
         days.push(cursor);
         cursor = addCalendarDays(cursor, 1);
     }
@@ -1983,31 +1944,74 @@ function taskSpan(item, timelineStart) {
     return { start, finish, offset, length };
 }
 
+/* Sentinel value for the "all projects" option in the timeline select. */
+const TIMELINE_ALL = 'all';
+
+/*
+   Which projects the timeline is showing. TIMELINE_ALL draws every
+   project's dated tasks on one chart; any other value is the index of a
+   single project. Returns the list of {project, isAll} to draw.
+*/
+function timelineProjects() {
+    if (timelineProjectIndex === TIMELINE_ALL) return projects.filter(project => projectSpan(project).first);
+    const project = projects[timelineProjectIndex];
+    return project ? [project] : [];
+}
+
+/* A single project's timeline range, or the widest range across several. */
+function timelineRange(selected) {
+    const spans = selected.map(project => projectSpan(project)).filter(span => span.first && span.last);
+    if (!spans.length) return { first: '', last: '', calendarDays: 0 };
+    const first = spans.map(span => span.first).sort()[0];
+    const last = spans.map(span => span.last).sort().slice(-1)[0];
+    const a = parseLocalDate(first);
+    const b = parseLocalDate(last);
+    const calendarDays = a && b ? Math.round((b - a) / 86400000) + 1 : 0;
+    return { first, last, calendarDays };
+}
+
 function renderTimeline() {
     const select = $('timeline-project-select');
-    const project = projects[timelineProjectIndex];
-    select.innerHTML = projects.length
-        ? projects.map((p, index) => `<option value="${index}" ${index === timelineProjectIndex ? 'selected' : ''}>${escapeHtml(p.id)} - ${escapeHtml(p.name || 'Untitled project')}</option>`).join('')
-        : '<option value="">No projects yet</option>';
+    /* The all-projects option always comes first, then one entry per project. */
+    const options = [];
+    if (projects.length) {
+        options.push(`<option value="${TIMELINE_ALL}" ${timelineProjectIndex === TIMELINE_ALL ? 'selected' : ''}>All projects (${projects.length})</option>`);
+        projects.forEach((p, index) => {
+            options.push(`<option value="${index}" ${index === timelineProjectIndex ? 'selected' : ''}>${escapeHtml(p.id)} - ${escapeHtml(p.name || 'Untitled project')}</option>`);
+        });
+    }
+    select.innerHTML = options.length ? options.join('') : '<option value="">No projects yet</option>';
 
     const grid = $('timeline-grid');
     const conflicts = $('timeline-conflicts');
-    const items = project && Array.isArray(project.items) ? project.items : [];
-    const span = projectSpan(project);
-    const dated = items.map(item => ({ item, span: taskSpan(item, span.first) })).filter(entry => entry.span);
+    const selected = timelineProjects();
+    const range = timelineRange(selected);
+    const isAll = timelineProjectIndex === TIMELINE_ALL;
 
-    if (!project || !dated.length) {
+    /* Each row knows its project, so several projects can share one chart. */
+    const dated = [];
+    selected.forEach(project => {
+        const items = Array.isArray(project.items) ? project.items : [];
+        items.forEach(item => {
+            const span = taskSpan(item, range.first);
+            if (span) dated.push({ item, span, project });
+        });
+    });
+
+    if (!projects.length || !dated.length) {
         grid.innerHTML = '';
         conflicts.innerHTML = '';
         $('timeline-empty').hidden = false;
         $('timeline-empty').textContent = !projects.length
             ? 'No projects yet. Create one to plan the work.'
-            : 'Add a start date to this project\'s tasks to see the timeline.';
+            : (isAll
+                ? 'Add start dates to the projects\' tasks to see them on the timeline.'
+                : 'Add a start date to this project\'s tasks to see the timeline.');
         return;
     }
     $('timeline-empty').hidden = true;
 
-    const days = timelineDays(project);
+    const days = timelineDays(range);
     /* Sort by start so the chart reads top-to-bottom in time order. */
     dated.sort((a, b) => (a.span.start < b.span.start ? -1 : a.span.start > b.span.start ? 1 : 0));
 
@@ -2027,10 +2031,16 @@ function renderTimeline() {
     conflicts.innerHTML = clashes.length
         ? `<div class="timeline-conflict-title">${clashes.length} clash${clashes.length === 1 ? '' : 'es'} - the same person is on two tasks at once</div>` +
           clashes.map(c => `<div class="timeline-conflict"><strong>${escapeHtml(c.owner)}</strong> ${escapeHtml(c.a)} <span>overlaps</span> ${escapeHtml(c.b)} <small>(${escapeHtml(c.from)} to ${escapeHtml(c.to)})</small></div>`).join('')
-        : (items.some(item => item.owner) ? '<div class="timeline-ok">No clashing assignments.</div>' : '');
+        : (dated.some(entry => entry.item.owner) ? '<div class="timeline-ok">No clashing assignments.</div>' : '');
 
     const dayWidth = 34;
-    const labelWidth = 220;
+    /*
+       Wide enough to read a task description, not just a clipped stub. The
+       label column was 220px and every task name was ellipsised; 340px shows
+       a typical plumbing description whole. The label sticks to the left so
+       it stays readable while the chart scrolls sideways.
+    */
+    const labelWidth = 340;
     const totalWidth = labelWidth + days.length * dayWidth;
 
     /* Header: month labels and day numbers. */
@@ -2058,10 +2068,14 @@ function renderTimeline() {
         /* The bar is absolutely positioned inside the track. */
         track += `<div class="timeline-bar stage-${escapeHtml(stageKey)}" style="left:${span.offset * dayWidth + 2}px;width:${span.length * dayWidth - 4}px" title="${escapeHtml(item.task || 'Task')}: ${escapeHtml(span.start)} to ${escapeHtml(span.finish)} (${formatDuration(minutes)})"><span>${escapeHtml(item.task || 'Task')}</span></div>`;
         track += '</div>';
+        /* On the all-projects chart each row names its project so tasks can
+           be told apart; on a single project the row is already scoped. */
+        const projectTag = isAll ? `<small class="timeline-label-project">${escapeHtml(entry.project.name || entry.project.id || 'Untitled project')}</small>` : '';
         return `<div class="timeline-row" data-index="${index}">
             <div class="timeline-label" style="width:${labelWidth}px">
-                <strong>${escapeHtml(item.task || 'Task')}</strong>
+                <strong title="${escapeHtml(item.task || 'Task')}">${escapeHtml(item.task || 'Task')}</strong>
                 <small>${escapeHtml(span.start)} &rarr; ${escapeHtml(span.finish)} · ${formatDuration(minutes)}${item.owner ? ' · ' + escapeHtml(item.owner) : ''}</small>
+                ${projectTag}
             </div>
             ${track}
         </div>`;
@@ -2374,19 +2388,8 @@ $('add-material').addEventListener('click', () => { materials.push({ category: '
 $('add-service').addEventListener('click', () => { services.push({ category: '', task: '', quantity: 1, rate: 350, scenario: 'Additional services' }); renderServices(); document.querySelector('.service-category:last-of-type')?.focus(); });
 $('add-scenario').addEventListener('click', addScenario);
 function clearQuote() { resetForm(); showToast('Quote cleared'); }
-$('save-quote').addEventListener('click', saveQuote); $('clear-quote').addEventListener('click', clearQuote); $('clear-quote-top').addEventListener('click', clearQuote); $('print-button').addEventListener('click', () => window.print()); $('pdf-button').addEventListener('click', () => window.print()); $('export-quotes-button').addEventListener('click', exportQuotes);
-$('import-quotes-button').addEventListener('click', () => $('import-quotes-file').click());
-$('import-quotes-file').addEventListener('change', event => { const file = event.target.files[0]; if (file) importQuotes(file); event.target.value = ''; });
+$('save-quote').addEventListener('click', saveQuote); $('clear-quote').addEventListener('click', clearQuote); $('clear-quote-top').addEventListener('click', clearQuote); $('print-button').addEventListener('click', () => window.print()); $('pdf-button').addEventListener('click', () => window.print());
 /* ---- cloud controls ---- */
-const cloudSignInButton = $('cloud-signin-button');
-if (cloudSignInButton) cloudSignInButton.addEventListener('click', openSignInDialog);
-
-const cloudSyncButton = $('cloud-sync-button');
-if (cloudSyncButton) cloudSyncButton.addEventListener('click', () => pullQuotes());
-
-const cloudSaveButton = $('cloud-save-button');
-if (cloudSaveButton) cloudSaveButton.addEventListener('click', () => pushAllQuotes(false));
-
 const cloudSignOutButton = $('cloud-signout-button');
 if (cloudSignOutButton) cloudSignOutButton.addEventListener('click', signOut);
 
@@ -2397,17 +2400,26 @@ if (cloudDialog) {
 }
 
 updateCloudButtons();
-initCloud().then(() => {
-    /*
-       Only after the cloud has been consulted: if we are signed in,
-       adopt the shared settings and price list so the first quote of
-       the day uses the company's real rates.
-    */
-    if (currentUser) return pullSettingsAndPrices();
+async function syncCloudAutomatically() {
+    if (!cloudConfigured() || !currentUser) return;
+    await refreshSessionIfNeeded();
+    if (!currentUser) { updateCloudButtons(); return; }
+    await Promise.all([pullSettingsAndPrices(), pullQuotes()]);
+}
+window.addEventListener('online', syncCloudAutomatically);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncCloudAutomatically();
 });
+initCloud().then(syncCloudAutomatically);
 /* ---- project planning controls ---- */
 document.querySelectorAll('.planning-tab').forEach(tab => tab.addEventListener('click', () => setPlanningView(tab.dataset.planningView)));
 $('new-project').addEventListener('click', newProject);
+$('delete-project').addEventListener('click', () => {
+    /* The delete acts on the project open in the One project view, so make
+       sure that view is showing and its latest edits are kept. */
+    if (planningView !== 'single' && projects.length) setPlanningView('single');
+    deleteProject();
+});
 $('save-project').addEventListener('click', saveProject);
 $('add-quote-items').addEventListener('click', addQuoteItemsToProject);
 $('auto-plan-project').addEventListener('click', autoPlanProject);
@@ -2426,7 +2438,11 @@ $('add-planning-task').addEventListener('click', () => {
     $$('#planning-list .planning-row .planning-task').pop()?.focus();
 });
 $('planning-project-select').addEventListener('change', event => switchPlanningProject(Number(event.target.value)));
-$('timeline-project-select').addEventListener('change', event => { timelineProjectIndex = Number(event.target.value) || 0; renderTimeline(); });
+$('timeline-project-select').addEventListener('change', event => {
+    const value = event.target.value;
+    timelineProjectIndex = value === TIMELINE_ALL ? TIMELINE_ALL : (Number(value) || 0);
+    renderTimeline();
+});
 $('new-quote-button').addEventListener('click', () => { resetForm(); switchView('new-quote'); });
 $('check-prices-button').addEventListener('click', runPriceCheck);
 $('price-list-file-page').addEventListener('change', importPriceList);

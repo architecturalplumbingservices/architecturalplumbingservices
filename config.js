@@ -28,12 +28,10 @@
      key is the one that starts eyJ and is labelled "public" /
      "anon" in the dashboard.
 
-   While both of these are left blank the app still works exactly
-   as it always has: quotes are saved on the device, everything is
-   usable offline, and the cloud buttons stay hidden so nobody is
-   shown a control that cannot work.
+   The public project URL and publishable key are shared with the
+   other AGA trades. They are safe to publish and are not secrets.
    ========================================================= */
 "use strict";
 
-window.APS_CLOUD_FUNCTION_URL = "";
-window.APS_SUPABASE_ANON_KEY = "";
+window.APS_CLOUD_FUNCTION_URL = "https://mvymxqajdiupucrkeqpg.supabase.co/functions/v1/cloud";
+window.APS_SUPABASE_ANON_KEY = "sb_publishable_U5wCUR1JeDskIqQdGwdAbg_zaczJYlJ";

@@ -1103,7 +1103,7 @@
                     <div>
 
                         <span class="eyebrow">
-                            YOUR LOCAL ARCHIVE
+                            SHARED QUOTE ARCHIVE
                         </span>
 
                         <h2>
@@ -1114,26 +1114,6 @@
 
 
                     <div class="view-intro-actions">
-
-                        <button class="primary-button compact" id="export-quotes-button" type="button">
-                            Save to file
-                        </button>
-
-                        <button class="primary-button compact" id="import-quotes-button" type="button">
-                            Load from file
-                        </button>
-
-                        <button class="primary-button compact" id="cloud-signin-button" type="button" hidden>
-                            Sign in to cloud
-                        </button>
-
-                        <button class="primary-button compact" id="cloud-sync-button" type="button" hidden>
-                            Sync now
-                        </button>
-
-                        <button class="secondary-button compact" id="cloud-save-button" type="button" hidden>
-                            Upload this device's quotes
-                        </button>
 
                         <button class="secondary-button compact" id="cloud-signout-button" type="button" hidden>
                             Sign out
@@ -1148,9 +1128,6 @@
                 </div>
 
                 <p class="cloud-status" id="cloud-status" style="margin: 0 0 12px; font-size: 13px; opacity: .7;"></p>
-
-                <input type="file" id="import-quotes-file" accept="application/json,.json" hidden>
-
 
                 <div id="saved-quotes" class="saved-quotes"></div>
 
@@ -1473,6 +1450,11 @@
 
                         <button class="secondary-button compact" id="new-project" type="button">
                             + New project
+                        </button>
+
+                        <button class="secondary-button compact danger-button" id="delete-project" type="button"
+                            title="Delete the project currently open in the One project view">
+                            Delete project
                         </button>
 
                         <button class="primary-button compact" id="save-project" type="button">

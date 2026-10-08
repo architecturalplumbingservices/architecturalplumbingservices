@@ -777,6 +777,17 @@ h2 {
     padding: 11px 16px
 }
 
+/* Destructive action (delete a project) - red so it reads as permanent. */
+.danger-button {
+    color: #c0392b;
+    border-color: #e0a49c
+}
+
+.danger-button:hover {
+    background: rgba(192, 57, 43, .08);
+    border-color: #c0392b
+}
+
 .saved-quotes {
     display: grid;
     gap: 10px
@@ -2082,12 +2093,30 @@ body :not(h1, h2, .nav-icon, .icon-button, .text-button span, .remove-material, 
     flex: 0 0 auto;
     padding: 9px 12px;
     border-right: 1px solid var(--line);
-    overflow: hidden
+    overflow: hidden;
+    background: white
+}
+
+.timeline-header .timeline-label {
+    background: var(--paper, #f7f8fa)
 }
 
 .timeline-label strong {
     display: block;
     font-size: 12px;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+/* The project a task belongs to, shown only on the all-projects chart. */
+.timeline-label-project {
+    display: block;
+    margin-top: 3px;
+    color: var(--coral);
+    font: 10px 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .04em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis
