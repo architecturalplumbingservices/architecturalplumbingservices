@@ -635,17 +635,16 @@ function cloudConfigured() { return Boolean(CLOUD_FUNCTION_URL && CLOUD_ANON_KEY
 function updateCloudStatus(message) { const el = $('cloud-status'); if (el) el.textContent = message; }
 
 /*
-   Which controls to show. Before sign-in we offer "Sign in"; after it,
-   sync and sign-out. Nothing is shown at all when the cloud has not
-   been configured, so a half-finished setup never presents dead
+   Which controls to show. Nothing is shown at all when the cloud has
+   not been configured, so a half-finished setup never presents dead
    buttons to staff.
+
+   The Saved quotes header used to carry a Sign out button here. It was
+   removed, so this function now has nothing to toggle; it is kept as a
+   no-op because sign-out is still reachable from the code paths that
+   call it, and a later control can be added in one place.
 */
 function updateCloudButtons() {
-    const show = cloudConfigured();
-    const signedIn = Boolean(currentUser);
-    const toggle = (id, visible) => { const el = $(id); if (el) el.hidden = !visible; };
-
-    toggle('cloud-signout-button', show && signedIn);
 }
 
 /*
@@ -2395,9 +2394,6 @@ $('add-scenario').addEventListener('click', addScenario);
 function clearQuote() { resetForm(); showToast('Quote cleared'); }
 $('save-quote').addEventListener('click', saveQuote); $('clear-quote').addEventListener('click', clearQuote); $('clear-quote-top').addEventListener('click', clearQuote); $('print-button').addEventListener('click', () => window.print()); $('pdf-button').addEventListener('click', () => window.print());
 /* ---- cloud controls ---- */
-const cloudSignOutButton = $('cloud-signout-button');
-if (cloudSignOutButton) cloudSignOutButton.addEventListener('click', signOut);
-
 const cloudDialog = $('cloud-dialog');
 if (cloudDialog) {
     $('cloud-form').addEventListener('submit', submitSignIn);
